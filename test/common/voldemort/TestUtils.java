@@ -141,7 +141,6 @@ public class TestUtils {
                          + (Math.abs(random.nextInt()) % 1000000);
         File temp = new File(tempDir);
         temp.mkdir();
-        temp.deleteOnExit();
         return temp;
     }
 

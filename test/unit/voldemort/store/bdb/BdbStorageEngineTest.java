@@ -127,5 +127,4 @@ public class BdbStorageEngineTest extends StorageEngineTest {
         }
         fail("No exception thrown for null database.");
     }
-
 }

@@ -18,7 +18,6 @@ package voldemort.server;
 
 import static voldemort.utils.Utils.croak;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +35,7 @@ import voldemort.server.scheduler.SchedulerService;
 import voldemort.server.socket.SocketService;
 import voldemort.server.storage.StorageService;
 import voldemort.store.Store;
+import voldemort.store.filesystem.FilesystemStorageEngine;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.utils.Props;
 import voldemort.utils.SystemTime;
@@ -65,7 +65,8 @@ public class VoldemortServer extends AbstractService {
         super("voldemort-server");
         this.voldemortConfig = config;
         this.storeMap = new ConcurrentHashMap<String, Store<byte[], byte[]>>();
-        this.metadataStore = new MetadataStore(new File(voldemortConfig.getMetadataDirectory()),
+        this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
+                                                                           voldemortConfig.getMetadataDirectory()),
                                                storeMap);
         this.cluster = this.metadataStore.getCluster();
         this.identityNode = this.cluster.getNodeById(voldemortConfig.getNodeId());
@@ -79,7 +80,8 @@ public class VoldemortServer extends AbstractService {
         this.identityNode = cluster.getNodeById(voldemortConfig.getNodeId());
         this.storeMap = new ConcurrentHashMap<String, Store<byte[], byte[]>>();
         this.services = createServices();
-        this.metadataStore = new MetadataStore(new File(voldemortConfig.getMetadataDirectory()),
+        this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
+                                                                           voldemortConfig.getMetadataDirectory()),
                                                storeMap);
     }
 

@@ -150,9 +150,4 @@ public class SocketStoreClientFactory extends AbstractStoreClientFactory {
                                                + url.getScheme() + "'.");
     }
 
-    public void close() {
-        this.socketPool.close();
-        this.getThreadPool().shutdown();
-    }
-
 }

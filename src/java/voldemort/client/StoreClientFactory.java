@@ -61,9 +61,4 @@ public interface StoreClientFactory {
     public <K, V> StoreClient<K, V> getStoreClient(String storeName,
                                                    InconsistencyResolver<Versioned<V>> inconsistencyResolver);
 
-    /**
-     * Close the store client
-     */
-    public void close();
-
 }
