@@ -40,6 +40,7 @@ import voldemort.store.InsufficientOperationalNodesException;
 import voldemort.store.Store;
 import voldemort.store.StoreUtils;
 import voldemort.store.UnreachableStoreException;
+import voldemort.utils.ByteArray;
 import voldemort.utils.SystemTime;
 import voldemort.utils.Time;
 import voldemort.utils.Utils;
@@ -57,13 +58,13 @@ import voldemort.versioning.Versioned;
  * @author jay
  * 
  */
-public class RoutedStore implements Store<byte[], byte[]> {
+public class RoutedStore implements Store<ByteArray, byte[]> {
 
     private static final long NODE_BANNAGE_MS = 10000L;
     private static final Logger logger = Logger.getLogger(RoutedStore.class.getName());
 
     private final String name;
-    private final Map<Integer, Store<byte[], byte[]>> innerStores;
+    private final Map<Integer, Store<ByteArray, byte[]>> innerStores;
     private final RoutingStrategy routingStrategy;
     private final int preferredWrites;
     private final int requiredWrites;
@@ -71,7 +72,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
     private final int requiredReads;
     private final ExecutorService executor;
     private final boolean repairReads;
-    private final ReadRepairer<byte[], byte[]> readRepairer;
+    private final ReadRepairer<ByteArray, byte[]> readRepairer;
     private final long timeoutMs;
     private final long nodeBannageMs;
     private final Time time;
@@ -89,7 +90,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
      * @param numberOfThreads The number of threads in the threadpool
      */
     public RoutedStore(String name,
-                       Map<Integer, Store<byte[], byte[]>> innerStores,
+                       Map<Integer, Store<ByteArray, byte[]>> innerStores,
                        RoutingStrategy routingStrategy,
                        int requiredReads,
                        int requiredWrites,
@@ -123,7 +124,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
      * @param threadPool The threadpool to use
      */
     public RoutedStore(String name,
-                       Map<Integer, Store<byte[], byte[]>> innerStores,
+                       Map<Integer, Store<ByteArray, byte[]>> innerStores,
                        RoutingStrategy routingStrategy,
                        int preferredReads,
                        int requiredReads,
@@ -148,7 +149,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
             throw new IllegalArgumentException("preferredWrites is larger than the total number of stores!");
 
         this.name = name;
-        this.innerStores = new ConcurrentHashMap<Integer, Store<byte[], byte[]>>(innerStores);
+        this.innerStores = new ConcurrentHashMap<Integer, Store<ByteArray, byte[]>>(innerStores);
         this.routingStrategy = routingStrategy;
         this.preferredReads = preferredReads;
         this.requiredReads = requiredReads;
@@ -156,15 +157,15 @@ public class RoutedStore implements Store<byte[], byte[]> {
         this.requiredWrites = requiredWrites;
         this.repairReads = repairReads;
         this.executor = threadPool;
-        this.readRepairer = new ReadRepairer<byte[], byte[]>();
+        this.readRepairer = new ReadRepairer<ByteArray, byte[]>();
         this.timeoutMs = timeoutMs;
         this.nodeBannageMs = nodeBannageMs;
         this.time = Utils.notNull(time);
     }
 
-    public boolean delete(final byte[] key, final Version version) throws VoldemortException {
+    public boolean delete(final ByteArray key, final Version version) throws VoldemortException {
         StoreUtils.assertValidKey(key);
-        final List<Node> nodes = routingStrategy.routeRequest(key);
+        final List<Node> nodes = routingStrategy.routeRequest(key.get());
 
         // quickly fail if there aren't enough live nodes to meet the
         // requirements
@@ -249,9 +250,9 @@ public class RoutedStore implements Store<byte[], byte[]> {
      * run out of nodes. 4. If we have multiple results do a read repair 5. If
      * we have at least requiredReads return. Otherwise throw an exception.
      */
-    public List<Versioned<byte[]>> get(final byte[] key) throws VoldemortException {
+    public List<Versioned<byte[]>> get(final ByteArray key) throws VoldemortException {
         StoreUtils.assertValidKey(key);
-        final List<Node> nodes = routingStrategy.routeRequest(key);
+        final List<Node> nodes = routingStrategy.routeRequest(key.get());
 
         // quickly fail if there aren't enough nodes to meet the requirement
         if(nodes.size() < this.requiredReads)
@@ -261,7 +262,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
                                                             + " reads required.");
 
         final List<Versioned<byte[]>> retrieved = Collections.synchronizedList(new ArrayList<Versioned<byte[]>>());
-        final List<NodeValue<byte[], byte[]>> nodeValues = Collections.synchronizedList(new ArrayList<NodeValue<byte[], byte[]>>());
+        final List<NodeValue<ByteArray, byte[]>> nodeValues = Collections.synchronizedList(new ArrayList<NodeValue<ByteArray, byte[]>>());
 
         // A count of the number of successful operations
         final AtomicInteger successes = new AtomicInteger();
@@ -287,9 +288,9 @@ public class RoutedStore implements Store<byte[], byte[]> {
                             retrieved.addAll(fetched);
                             if(repairReads) {
                                 for(Versioned<byte[]> f: fetched)
-                                    nodeValues.add(new NodeValue<byte[], byte[]>(node.getId(),
-                                                                                 key,
-                                                                                 f));
+                                    nodeValues.add(new NodeValue<ByteArray, byte[]>(node.getId(),
+                                                                                    key,
+                                                                                    f));
                             }
                             successes.incrementAndGet();
                             node.getStatus().setAvailable();
@@ -340,7 +341,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
             this.executor.execute(new Runnable() {
 
                 public void run() {
-                    for(NodeValue<byte[], byte[]> v: readRepairer.getRepairs(nodeValues)) {
+                    for(NodeValue<ByteArray, byte[]> v: readRepairer.getRepairs(nodeValues)) {
                         try {
                             logger.debug("Doing read repair on node " + v.getNodeId()
                                          + " for key '" + v.getKey() + "' with version "
@@ -373,9 +374,10 @@ public class RoutedStore implements Store<byte[], byte[]> {
         return this.name;
     }
 
-    public void put(final byte[] key, final Versioned<byte[]> versioned) throws VoldemortException {
+    public void put(final ByteArray key, final Versioned<byte[]> versioned)
+            throws VoldemortException {
         StoreUtils.assertValidKey(key);
-        final List<Node> nodes = routingStrategy.routeRequest(key);
+        final List<Node> nodes = routingStrategy.routeRequest(key.get());
 
         // quickly fail if there aren't enough nodes to meet the requirement
         final int numNodes = nodes.size();
@@ -515,7 +517,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
             this.executor.shutdownNow();
         }
         VoldemortException exception = null;
-        for(Store<byte[], byte[]> client: innerStores.values()) {
+        for(Store<?, ?> client: innerStores.values()) {
             try {
                 client.close();
             } catch(VoldemortException v) {
@@ -526,7 +528,7 @@ public class RoutedStore implements Store<byte[], byte[]> {
             throw exception;
     }
 
-    Map<Integer, Store<byte[], byte[]>> getInnerStores() {
+    Map<Integer, Store<ByteArray, byte[]>> getInnerStores() {
         return this.innerStores;
     }
 

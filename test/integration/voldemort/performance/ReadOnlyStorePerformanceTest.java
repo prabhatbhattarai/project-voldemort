@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import voldemort.server.VoldemortConfig;
 import voldemort.store.Store;
 import voldemort.store.readonly.RandomAccessFileStorageConfiguration;
+import voldemort.utils.ByteArray;
 import voldemort.utils.Props;
 import voldemort.utils.Utils;
 import voldemort.versioning.ObsoleteVersionException;
@@ -39,7 +40,7 @@ public class ReadOnlyStorePerformanceTest {
         String serverPropsFile = args[2];
         String storeName = args[3];
 
-        final Store<byte[], byte[]> store = new RandomAccessFileStorageConfiguration(new VoldemortConfig(new Props(new File(serverPropsFile)))).getStore(storeName);
+        final Store<ByteArray, byte[]> store = new RandomAccessFileStorageConfiguration(new VoldemortConfig(new Props(new File(serverPropsFile)))).getStore(storeName);
 
         final AtomicInteger obsoletes = new AtomicInteger(0);
         final AtomicInteger nullResults = new AtomicInteger(0);
@@ -51,8 +52,7 @@ public class ReadOnlyStorePerformanceTest {
 
             public void doOperation(int index) throws Exception {
                 try {
-                    byte[] bytes = (new Integer((int) (Math.random() * MaxMemberID))).toString()
-                                                                                     .getBytes();
+                    ByteArray bytes = ByteArray.valueOf(new Integer((int) (Math.random() * MaxMemberID)).toString());
                     totalResults.incrementAndGet();
                     if(null == store.get(bytes)) {
                         nullResults.incrementAndGet();
