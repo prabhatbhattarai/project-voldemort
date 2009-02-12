@@ -26,6 +26,9 @@ import voldemort.versioning.Versioned;
  * The basic interface used for storage and storage decorators. Allows the usual
  * crud operations.
  * 
+ * Note that certain operations rely on the correct implementation of equals and
+ * hashCode for the key. As such, arrays as keys should be avoided.
+ * 
  * @author jay
  * 
  */

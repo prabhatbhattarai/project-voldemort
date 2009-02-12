@@ -37,6 +37,7 @@ import voldemort.annotations.jmx.JmxOperation;
 import voldemort.store.Entry;
 import voldemort.store.PersistenceFailureException;
 import voldemort.store.StorageEngine;
+import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
 import voldemort.versioning.VectorClock;
@@ -51,7 +52,7 @@ import com.google.common.base.Objects;
  * @author jay
  * 
  */
-public class RandomAccessFileStore implements StorageEngine<byte[], byte[]> {
+public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
 
     private static Logger logger = Logger.getLogger(RandomAccessFileStore.class);
 
@@ -198,11 +199,11 @@ public class RandomAccessFileStore implements StorageEngine<byte[], byte[]> {
         }
     }
 
-    public ClosableIterator<Entry<byte[], Versioned<byte[]>>> entries() {
+    public ClosableIterator<Entry<ByteArray, Versioned<byte[]>>> entries() {
         throw new RuntimeException("Not implemented.");
     }
 
-    public List<Versioned<byte[]>> get(byte[] key) throws VoldemortException {
+    public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
         RandomAccessFile index = null;
         RandomAccessFile data = null;
         try {
@@ -232,9 +233,9 @@ public class RandomAccessFileStore implements StorageEngine<byte[], byte[]> {
         }
     }
 
-    private long getValueLocation(RandomAccessFile index, byte[] key) throws IOException,
+    private long getValueLocation(RandomAccessFile index, ByteArray key) throws IOException,
             InterruptedException {
-        byte[] keyMd5 = ByteUtils.md5(key);
+        byte[] keyMd5 = ByteUtils.md5(key.get());
         byte[] foundKey = new byte[KEY_HASH_SIZE];
         int chunkSize = KEY_HASH_SIZE + POSITION_SIZE;
         long low = 0;
@@ -290,14 +291,14 @@ public class RandomAccessFileStore implements StorageEngine<byte[], byte[]> {
     /**
      * Not supported, throws UnsupportedOperationException if called
      */
-    public boolean delete(byte[] key, Version version) throws VoldemortException {
+    public boolean delete(ByteArray key, Version version) throws VoldemortException {
         throw new UnsupportedOperationException("Delete is not supported on this store, it is read-only.");
     }
 
     /**
      * Not supported, throws UnsupportedOperationException if called
      */
-    public void put(byte[] key, Versioned<byte[]> value) throws VoldemortException {
+    public void put(ByteArray key, Versioned<byte[]> value) throws VoldemortException {
         throw new UnsupportedOperationException("Put is not supported on this store, it is read-only.");
     }
 

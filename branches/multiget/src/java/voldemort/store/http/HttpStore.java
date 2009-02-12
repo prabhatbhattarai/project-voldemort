@@ -37,6 +37,7 @@ import voldemort.VoldemortException;
 import voldemort.store.Store;
 import voldemort.store.StoreUtils;
 import voldemort.store.UnreachableStoreException;
+import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Version;
@@ -48,7 +49,7 @@ import voldemort.versioning.Versioned;
  * 
  * @author jay
  */
-public class HttpStore implements Store<byte[], byte[]> {
+public class HttpStore implements Store<ByteArray, byte[]> {
 
     private static final Hex codec = new Hex();
     private static final HttpResponseCodeErrorMapper httpResponseCodeErrorMapper = new HttpResponseCodeErrorMapper();
@@ -66,7 +67,7 @@ public class HttpStore implements Store<byte[], byte[]> {
         this.httpClient = client;
     }
 
-    public boolean delete(byte[] key, Version version) throws VoldemortException {
+    public boolean delete(ByteArray key, Version version) throws VoldemortException {
         StoreUtils.assertValidKey(key);
         String url = getUrl(key);
         DeleteMethod method = null;
@@ -92,7 +93,7 @@ public class HttpStore implements Store<byte[], byte[]> {
         }
     }
 
-    public List<Versioned<byte[]>> get(byte[] key) throws VoldemortException {
+    public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
         StoreUtils.assertValidKey(key);
         String url = getUrl(key);
         GetMethod method = null;
@@ -127,7 +128,7 @@ public class HttpStore implements Store<byte[], byte[]> {
         }
     }
 
-    public void put(byte[] key, Versioned<byte[]> versioned) throws VoldemortException {
+    public void put(ByteArray key, Versioned<byte[]> versioned) throws VoldemortException {
         StoreUtils.assertValidKey(key);
         String url = getUrl(key);
         PutMethod method = null;
@@ -157,9 +158,9 @@ public class HttpStore implements Store<byte[], byte[]> {
         return storeName;
     }
 
-    private String getUrl(byte[] key) throws VoldemortException {
+    private String getUrl(ByteArray key) throws VoldemortException {
         return "http://" + host + ":" + port + "/" + getName() + "/"
-               + ByteUtils.getString(codec.encode(key), "UTF-8");
+               + ByteUtils.getString(codec.encode(key.get()), "UTF-8");
     }
 
 }

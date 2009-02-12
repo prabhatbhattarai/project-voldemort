@@ -28,6 +28,7 @@ import voldemort.VoldemortTestConstants;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.ByteArrayStoreTest;
 import voldemort.store.Store;
+import voldemort.utils.ByteArray;
 import voldemort.versioning.Versioned;
 
 public class SocketStoreTest extends ByteArrayStoreTest {
@@ -46,7 +47,7 @@ public class SocketStoreTest extends ByteArrayStoreTest {
     }
 
     @Override
-    public Store<byte[], byte[]> getStore() {
+    public Store<ByteArray, byte[]> getStore() {
         return socketStore;
     }
 
@@ -58,28 +59,30 @@ public class SocketStoreTest extends ByteArrayStoreTest {
     }
 
     public void testVeryLargeValues() {
-        final Store<byte[], byte[]> store = getStore();
+        final Store<ByteArray, byte[]> store = getStore();
         byte[] biggie = new byte[1 * 1024 * 1024];
+        ByteArray key = new ByteArray(biggie);
         Random rand = new Random();
         for(int i = 0; i < 10; i++) {
             rand.nextBytes(biggie);
             Versioned<byte[]> versioned = new Versioned<byte[]>(biggie);
-            store.put(biggie, versioned);
-            assertNotNull(store.get(biggie));
-            assertTrue(store.delete(biggie, versioned.getVersion()));
+            store.put(key, versioned);
+            assertNotNull(store.get(key));
+            assertTrue(store.delete(key, versioned.getVersion()));
         }
     }
 
     public void testThreadOverload() throws Exception {
-        final Store<byte[], byte[]> store = getStore();
+        final Store<ByteArray, byte[]> store = getStore();
         final AtomicInteger val = new AtomicInteger(0);
-        final CountDownLatch latch = new CountDownLatch(100);
+        int count = 10;
+        final CountDownLatch latch = new CountDownLatch(count);
         Executor exec = Executors.newCachedThreadPool();
-        for(int i = 0; i < 10; i++) {
+        for(int i = 0; i < count; i++) {
             exec.execute(new Runnable() {
 
                 public void run() {
-                    store.put(TestUtils.randomString("abcdefghijklmnopqrs", 10).getBytes(),
+                    store.put(ByteArray.valueOf(TestUtils.randomString("abcdefghijklmnopqrs", 10)),
                               new Versioned<byte[]>(TestUtils.randomBytes(8)));
                     latch.countDown();
                 }

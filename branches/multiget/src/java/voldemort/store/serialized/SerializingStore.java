@@ -22,12 +22,13 @@ import java.util.List;
 import voldemort.VoldemortException;
 import voldemort.serialization.Serializer;
 import voldemort.store.Store;
+import voldemort.utils.ByteArray;
 import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
 /**
- * A store that transforms requests to a Store<byte[],byte[]> to a Store<K,V>
+ * A store that transforms requests to a Store<ByteArray,byte[]> to a Store<K,V>
  * 
  * @author jay
  * 
@@ -36,11 +37,11 @@ import voldemort.versioning.Versioned;
  */
 public class SerializingStore<K, V> implements Store<K, V> {
 
-    private final Store<byte[], byte[]> store;
+    private final Store<ByteArray, byte[]> store;
     private final Serializer<K> keySerializer;
     private final Serializer<V> valueSerializer;
 
-    public SerializingStore(Store<byte[], byte[]> store,
+    public SerializingStore(Store<ByteArray, byte[]> store,
                             Serializer<K> keySerializer,
                             Serializer<V> valueSerializer) {
         this.store = Utils.notNull(store);
@@ -49,11 +50,15 @@ public class SerializingStore<K, V> implements Store<K, V> {
     }
 
     public boolean delete(K key, Version version) throws VoldemortException {
-        return store.delete(keySerializer.toBytes(key), version);
+        return store.delete(keyToBytes(key), version);
+    }
+
+    private ByteArray keyToBytes(K key) {
+        return new ByteArray(keySerializer.toBytes(key));
     }
 
     public List<Versioned<V>> get(K key) throws VoldemortException {
-        List<Versioned<byte[]>> found = store.get(keySerializer.toBytes(key));
+        List<Versioned<byte[]>> found = store.get(keyToBytes(key));
         List<Versioned<V>> results = new ArrayList<Versioned<V>>(found.size());
         for(Versioned<byte[]> versioned: found)
             results.add(new Versioned<V>(valueSerializer.toObject(versioned.getValue()),
@@ -66,9 +71,8 @@ public class SerializingStore<K, V> implements Store<K, V> {
     }
 
     public void put(K key, Versioned<V> value) throws VoldemortException {
-        store.put(keySerializer.toBytes(key),
-                  new Versioned<byte[]>(valueSerializer.toBytes(value.getValue()),
-                                        value.getVersion()));
+        store.put(keyToBytes(key), new Versioned<byte[]>(valueSerializer.toBytes(value.getValue()),
+                                                         value.getVersion()));
     }
 
     public void close() {
