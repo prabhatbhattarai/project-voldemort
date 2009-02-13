@@ -73,7 +73,7 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
             String keyStr = ByteUtils.getString(key, "UTF-8");
             String valueStr = ByteUtils.getString(value.getValue(), "UTF-8");
             Versioned<String> newVersioned = new Versioned<String>(valueStr, value.getVersion());
-            if(STORES_KEY.equals(key)) {
+            if(STORES_KEY.equals(keyStr)) {
                 List<Versioned<String>> current = innerStore.get(keyStr);
                 if(current.size() == 0) {
                     // There are no current stores, so whatever they put is fine
@@ -90,7 +90,7 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
                 } else {
                     throw new VoldemortException("Inconsistent metadata: " + current);
                 }
-            } else if(CLUSTER_KEY.equals(key)) {
+            } else if(CLUSTER_KEY.equals(keyStr)) {
                 // TODO: handle cluster metadata updates
                 innerStore.put(keyStr, newVersioned);
             }
@@ -148,7 +148,7 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
                                                                                                 "UTF-8")))));
     }
 
-    private String getSingleValue(List<Versioned<byte[]>> found) {
+    public String getSingleValue(List<Versioned<byte[]>> found) {
         if(found.size() != 1)
             throw new VoldemortException("Inconsistent metadata found: expected 1 version but found "
                                          + found.size());
