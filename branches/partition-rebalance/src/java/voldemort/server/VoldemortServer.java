@@ -51,15 +51,16 @@ import voldemort.utils.Utils;
  */
 public class VoldemortServer extends AbstractService {
 
-    private static final Logger logger = Logger.getLogger(VoldemortServer.class.getName());
+    protected static final Logger logger = Logger.getLogger(VoldemortServer.class.getName());
     public static final long DEFAULT_PUSHER_POLL_MS = 60 * 1000;
 
     private final Node identityNode;
     private final Cluster cluster;
-    private final MetadataStore metadataStore;
     private final List<VoldemortService> services;
     private final ConcurrentMap<String, Store<byte[], byte[]>> storeMap;
     private final VoldemortConfig voldemortConfig;
+
+    private final MetadataStore metadataStore;
 
     public VoldemortServer(VoldemortConfig config) {
         super("voldemort-server");
@@ -85,7 +86,7 @@ public class VoldemortServer extends AbstractService {
                                                storeMap);
     }
 
-    private List<VoldemortService> createServices() {
+    protected List<VoldemortService> createServices() {
         List<VoldemortService> services = Collections.synchronizedList(new ArrayList<VoldemortService>());
         SchedulerService scheduler = new SchedulerService("scheduler-service",
                                                           voldemortConfig.getSchedulerThreads(),
@@ -94,7 +95,8 @@ public class VoldemortServer extends AbstractService {
         services.add(new StorageService("storage-service",
                                         this.storeMap,
                                         scheduler,
-                                        voldemortConfig));
+                                        voldemortConfig,
+                                        metadataStore));
         if(voldemortConfig.isHttpServerEnabled())
             services.add(new HttpService("http-service",
                                          this,
@@ -201,4 +203,7 @@ public class VoldemortServer extends AbstractService {
         return this.voldemortConfig;
     }
 
+    public MetadataStore getMetaDataStore() {
+        return metadataStore;
+    }
 }

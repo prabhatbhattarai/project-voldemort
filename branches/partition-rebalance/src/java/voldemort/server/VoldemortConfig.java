@@ -90,10 +90,14 @@ public class VoldemortConfig implements Serializable {
     private boolean enableVerboseLogging;
     private boolean enableStatTracking;
 
-    private final long pusherPollMs;
+    private long pusherPollMs;
 
-    public VoldemortConfig() {
-        this(new Props());
+    public VoldemortConfig(int nodeId, String voldemortHomePath) {
+        Props props = new Props();
+        props.put("node.id", nodeId);
+        props.put("voldemort.home", voldemortHomePath);
+
+        init(props);
     }
 
     public VoldemortConfig(Properties props) {
@@ -101,6 +105,10 @@ public class VoldemortConfig implements Serializable {
     }
 
     public VoldemortConfig(Props props) {
+        init(props);
+    }
+
+    private void init(Props props) {
         try {
             this.nodeId = props.getInt("node.id");
         } catch(UndefinedPropertyException e) {

@@ -50,7 +50,6 @@ import voldemort.store.StorageEngineType;
 import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
 import voldemort.store.bdb.BdbStorageConfiguration;
-import voldemort.store.filesystem.FilesystemStorageEngine;
 import voldemort.store.logging.LoggingStore;
 import voldemort.store.memory.CacheStorageConfiguration;
 import voldemort.store.memory.InMemoryStorageConfiguration;
@@ -91,7 +90,8 @@ public class StorageService extends AbstractService {
     public StorageService(String name,
                           ConcurrentMap<String, Store<byte[], byte[]>> storeMap,
                           SchedulerService scheduler,
-                          VoldemortConfig config) {
+                          VoldemortConfig config,
+                          MetadataStore metaDataStore) {
         super(name);
         this.voldemortConfig = config;
         this.storeMapper = new StoreDefinitionsMapper();
@@ -99,9 +99,7 @@ public class StorageService extends AbstractService {
         this.rawEngines = new ConcurrentHashMap<String, StorageEngine<byte[], byte[]>>();
         this.scheduler = scheduler;
         this.storageConfigurations = initStorageConfigurations(config);
-        this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
-                                                                           config.getMetadataDirectory()),
-                                               storeMap);
+        this.metadataStore = metaDataStore;
         this.readOnlyStores = new ConcurrentHashMap<String, RandomAccessFileStore>();
     }
 
