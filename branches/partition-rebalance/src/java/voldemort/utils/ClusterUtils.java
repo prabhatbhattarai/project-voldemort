@@ -1,0 +1,160 @@
+/*
+ * Copyright 2008-2009 LinkedIn, Inc
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
+package voldemort.utils;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.PriorityQueue;
+
+import voldemort.cluster.Cluster;
+import voldemort.cluster.Node;
+
+/**
+ * Helper functions to get updated cluster by deleting/adding a node keeping the
+ * partitions changes to minimum.
+ * 
+ * @author bbansal
+ * 
+ */
+public class ClusterUtils {
+
+    /**
+     * Helper function to create an updated cluster configuration given an
+     * existing cluster configuration by adding a node.
+     * <p>
+     * assumes all nodes are equal steals partition using a priority queue
+     * 
+     * @param cluster
+     * @param nodeId
+     * @return
+     */
+    public static Cluster updateClusterAddNode(Cluster cluster,
+                                               int nodeId,
+                                               String host,
+                                               int httpPort,
+                                               int socketPort) {
+        int totalPartitons = 0;
+        PriorityQueue<ComparableNode> queue = new PriorityQueue<ComparableNode>(cluster.getNumberOfNodes(),
+                                                                                Collections.reverseOrder());
+        for(Node node: cluster.getNodes()) {
+            if(node.getId() == nodeId) {
+                throw new IllegalArgumentException("nodeID:" + nodeId
+                                                   + " already present in  cluster.");
+            }
+            queue.add(new ComparableNode(node, node.getPartitionIds()));
+            totalPartitons += node.getNumberOfPartitions();
+        }
+
+        int numStealPartitons = (int) (totalPartitons / cluster.getNumberOfNodes());
+        ArrayList<Integer> stealList = new ArrayList<Integer>();
+
+        while(stealList.size() < numStealPartitons) {
+            ComparableNode node = queue.poll();
+            // steal the last partition.
+            stealList.add(node.getPartitions().remove(node.getPartitions().size() - 1));
+            // add the node back into queue.
+            queue.add(node);
+        }
+
+        // Lets make the new Cluster now !!
+        ArrayList<Node> nodes = new ArrayList<Node>();
+        nodes.add(new Node(nodeId, host, socketPort, httpPort, stealList));
+        for(ComparableNode node: queue) {
+            nodes.add(new Node(node.getNode().getId(),
+                               node.getNode().getHost(),
+                               node.getNode().getSocketPort(),
+                               node.getNode().getHttpPort(),
+                               node.getPartitions()));
+        }
+
+        return new Cluster(cluster.getName(), nodes);
+    }
+
+    /**
+     * Helper function to create an updated cluster configuration given an
+     * existing cluster configuration by deleting a node.
+     * <p>
+     * assumes all nodes are equal steals partition using a priority queue
+     * 
+     * @param cluster
+     * @param nodeId
+     * @return
+     */
+    public static Cluster updateClusterDeleteNode(Cluster cluster,
+                                                  int nodeId,
+                                                  String host,
+                                                  int httpPort,
+                                                  int socketPort) {
+        Node deletedNode = null;
+        PriorityQueue<ComparableNode> queue = new PriorityQueue<ComparableNode>();
+        for(Node node: cluster.getNodes()) {
+            if(node.getId() == nodeId) {
+                deletedNode = node;
+                continue;
+            }
+            queue.add(new ComparableNode(node, node.getPartitionIds()));
+        }
+        if(null == deletedNode) {
+            throw new IllegalArgumentException("nodeID:" + nodeId + " is not present in  cluster.");
+        }
+
+        ArrayList<Integer> stealList = new ArrayList<Integer>(deletedNode.getPartitionIds());
+        while(stealList.size() > 0) {
+            ComparableNode node = queue.poll();
+
+            // add the node back into queue
+            node.getPartitions().add(stealList.remove(stealList.size() - 1));
+            queue.add(node);
+        }
+
+        // Lets make the new Cluster now !!
+        ArrayList<Node> nodes = new ArrayList<Node>();
+        for(ComparableNode node: queue) {
+            nodes.add(new Node(node.getNode().getId(),
+                               node.getNode().getHost(),
+                               node.getNode().getSocketPort(),
+                               node.getNode().getHttpPort(),
+                               node.getPartitions()));
+        }
+
+        return new Cluster(cluster.getName(), nodes);
+    }
+
+    private static class ComparableNode implements Comparable<ComparableNode> {
+
+        private Node node;
+        private ArrayList<Integer> partitons;
+
+        public ComparableNode(Node node, List<Integer> partitions) {
+            this.node = node;
+            this.partitons = partitons;
+        }
+
+        public int compareTo(ComparableNode o) {
+            return new Integer(getPartitions().size()).compareTo(o.getPartitions().size());
+        }
+
+        public Node getNode() {
+            return node;
+        }
+
+        public ArrayList<Integer> getPartitions() {
+            return partitons;
+        }
+    }
+}

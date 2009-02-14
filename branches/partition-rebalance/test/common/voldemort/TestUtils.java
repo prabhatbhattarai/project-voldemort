@@ -17,9 +17,14 @@
 package voldemort;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 
+import voldemort.cluster.Node;
+import voldemort.routing.ConsistentRoutingStrategy;
+import voldemort.routing.RoutingStrategy;
 import voldemort.versioning.VectorClock;
 
 /**
@@ -146,5 +151,24 @@ public class TestUtils {
 
     public static String str(String s) {
         return "\"" + s + "\"";
+    }
+
+    public static RoutingStrategy getRoutingStrategy(int[][] partitionMap, int numReplication) {
+        return new ConsistentRoutingStrategy(createNodes(partitionMap), numReplication);
+    }
+
+    public static Collection<Node> createNodes(int[][] partitionMap) {
+        ArrayList<Node> nodes = new ArrayList<Node>(partitionMap.length);
+        ArrayList<Integer> partitionList = new ArrayList<Integer>();
+
+        for(int i = 0; i < partitionMap.length; i++) {
+            partitionList.clear();
+            for(int p = 0; p < partitionMap[i].length; p++) {
+                partitionList.add(partitionMap[i][p]);
+            }
+            nodes.add(new Node(i, "localhost", 8880 + i, 6666 + i, partitionList));
+        }
+
+        return nodes;
     }
 }

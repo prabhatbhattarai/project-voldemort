@@ -27,6 +27,7 @@ import junit.framework.TestCase;
 import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
+import voldemort.TestUtils;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
@@ -87,11 +88,10 @@ public class RebalancingStoreClientTest extends TestCase {
     private void updateCluster(RebalancingVoldemortServer server) {
         Cluster cluster = server.getMetaDataStore().getCluster();
 
-        // add node 3 and partition 4,5 to cluster.
-        ArrayList<Integer> partitionList = new ArrayList<Integer>();
-        ArrayList<Node> nodes = new ArrayList<Node>(cluster.getNodes());
-        nodes.add(new Node(3, "localhost", 8883, 6668, partitionList));
-        Cluster updatedCluster = new Cluster("new-cluster", nodes);
+        // add node 2 and move partition 1 to node 2.
+        int[][] partitionMap = new int[][] { { 0 }, { 2, 3 }, { 1 } };
+        Cluster updatedCluster = new Cluster("new-cluster",
+                                             new ArrayList<Node>(TestUtils.createNodes(partitionMap)));
 
         // update VoldemortServer cluster.xml
         server.updateClusterMetadata(updatedCluster);

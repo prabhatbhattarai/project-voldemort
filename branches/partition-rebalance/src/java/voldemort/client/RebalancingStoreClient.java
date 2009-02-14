@@ -98,6 +98,7 @@ public class RebalancingStoreClient<K, V> extends DefaultStoreClient<K, V> {
     }
 
     private String bootstrapMetadata(String key, URI[] urls) {
+        String value;
         for(URI url: urls) {
             try {
                 Store<byte[], byte[]> remoteStore = new SocketStore(MetadataStore.METADATA_STORE_NAME,
@@ -119,7 +120,7 @@ public class RebalancingStoreClient<K, V> extends DefaultStoreClient<K, V> {
     }
 
     private RoutingStrategy updateRoutingStrategy() {
-
+        logger.info("client updating metadata from server.");
         String clusterXml = bootstrapMetadata(MetadataStore.CLUSTER_KEY, serverURLs);
         Cluster cluster = new ClusterMapper().readCluster(new StringReader(clusterXml));
 
