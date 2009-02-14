@@ -16,6 +16,11 @@
 
 package voldemort.store;
 
+import java.util.List;
+
+import voldemort.cluster.Node;
+import voldemort.routing.RoutingStrategy;
+
 /**
  * Check that the given key is valid
  * 
@@ -29,4 +34,16 @@ public class StoreUtils {
             throw new IllegalArgumentException("Key cannot be null.");
     }
 
+    public static void assertValidMetadata(byte[] key,
+                                           RoutingStrategy routingStrategy,
+                                           int currentNodeId) {
+        List<Node> nodes = routingStrategy.routeRequest(key);
+        for(Node node: nodes) {
+            if(node.getId() == currentNodeId) {
+                return;
+            }
+        }
+
+        throw new InvalidMetadataException("client routing strategy not in sync with store routing strategy!");
+    }
 }
