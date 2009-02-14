@@ -48,7 +48,8 @@ public class DefaultStoreClient<K, V> implements StoreClient<K, V> {
     private final Store<K, V> store;
     private final Serializer<K> keySerializer;
     private final Serializer<V> valueSerializer;
-    private final RoutingStrategy routingStragy;
+
+    private RoutingStrategy routingStragy;
 
     public DefaultStoreClient(Store<K, V> store,
                               Serializer<K> keySerializer,
@@ -153,10 +154,21 @@ public class DefaultStoreClient<K, V> implements StoreClient<K, V> {
         return this.valueSerializer;
     }
 
+    public RoutingStrategy getRoutingStrategy() {
+        return routingStragy;
+    }
+
+    public void setRoutingStrategy(RoutingStrategy routingStrategy) {
+        this.routingStragy = routingStrategy;
+    }
+
     public List<Node> getResponsibleNodes(K key) {
         if(this.routingStragy == null)
             throw new UnsupportedOperationException("This store client has no routing strategy.");
         return this.routingStragy.routeRequest(keySerializer.toBytes(key));
     }
 
+    public Store getStore() {
+        return store;
+    }
 }

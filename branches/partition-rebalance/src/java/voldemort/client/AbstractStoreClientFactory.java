@@ -154,7 +154,7 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
                                             routingStrategy);
     }
 
-    private String bootstrapMetadata(String key, URI[] urls) {
+    public  String bootstrapMetadata(String key, URI[] urls) {
         for(URI url: urls) {
             try {
                 Store<byte[], byte[]> remoteStore = getStore(MetadataStore.METADATA_STORE_NAME,
