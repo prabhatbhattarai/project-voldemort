@@ -19,6 +19,8 @@ package voldemort.server;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import voldemort.cluster.Cluster;
 import voldemort.store.Store;
 import voldemort.store.metadata.MetadataStore;
@@ -37,6 +39,8 @@ import voldemort.xml.ClusterMapper;
 public class RebalancingVoldemortServer extends VoldemortServer implements
         RebalancingVoldemortService {
 
+    private static final Logger logger = Logger.getLogger(RebalancingVoldemortServer.class.getName());
+
     public RebalancingVoldemortServer(VoldemortConfig config) {
         super(config);
     }
@@ -46,6 +50,8 @@ public class RebalancingVoldemortServer extends VoldemortServer implements
     }
 
     public void updateClusterMetadata(Cluster updatedCluster) throws UnableUpdateMetadataException {
+        logger.info("updating server Id(" + getIdentityNode().getId() + ") with cluster info("
+                    + updatedCluster.toString() + ")");
         // get current ClusterInfo
         List<Versioned<byte[]>> clusterInfo = getMetaDataStore().get(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY,
                                                                                         "UTF-8"));
@@ -64,6 +70,7 @@ public class RebalancingVoldemortServer extends VoldemortServer implements
                                                                         "UTF-8")));
 
         List<VoldemortService> updatedServices = createServices();
+
         for(VoldemortService service: getServices()) {
             try {
                 service.stop();
@@ -73,8 +80,10 @@ public class RebalancingVoldemortServer extends VoldemortServer implements
         }
 
         getServices().clear();
+        this.setCluster(updatedCluster);
 
         for(VoldemortService service: updatedServices) {
+            service.start();
             getServices().add(service);
         }
     }

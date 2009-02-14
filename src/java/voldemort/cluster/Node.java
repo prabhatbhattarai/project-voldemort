@@ -108,7 +108,9 @@ public class Node implements Serializable {
 
     @Override
     public String toString() {
-        return "Node" + getId();
+        StringBuilder strb = new StringBuilder();
+        strb.append("Node" + getId());
+        return strb.toString();
     }
 
     @Override

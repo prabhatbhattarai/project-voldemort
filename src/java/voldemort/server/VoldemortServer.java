@@ -55,12 +55,12 @@ public class VoldemortServer extends AbstractService {
     public static final long DEFAULT_PUSHER_POLL_MS = 60 * 1000;
 
     private final Node identityNode;
-    private final Cluster cluster;
     private final List<VoldemortService> services;
     private final ConcurrentMap<String, Store<byte[], byte[]>> storeMap;
     private final VoldemortConfig voldemortConfig;
-
     private final MetadataStore metadataStore;
+
+    private Cluster cluster;
 
     public VoldemortServer(VoldemortConfig config) {
         super("voldemort-server");
@@ -182,6 +182,10 @@ public class VoldemortServer extends AbstractService {
 
     public Cluster getCluster() {
         return cluster;
+    }
+
+    public void setCluster(Cluster cluster) {
+        this.cluster = cluster;
     }
 
     public List<VoldemortService> getServices() {
