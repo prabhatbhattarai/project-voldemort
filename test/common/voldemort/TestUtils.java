@@ -21,10 +21,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
+import junit.framework.TestCase;
+import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
+import voldemort.utils.ClusterUtils;
 import voldemort.versioning.VectorClock;
 
 /**
@@ -170,5 +175,54 @@ public class TestUtils {
         }
 
         return nodes;
+    }
+
+    public static void checkClusterMatch(Cluster A, Cluster B) {
+        System.out.println("cluster A:" + ClusterUtils.GetClusterAsString(A));
+        System.out.println("cluster B:" + ClusterUtils.GetClusterAsString(B));
+
+        TestCase.assertEquals("num nodes do not match.", A.getNodes().size(), B.getNodes().size());
+
+        ArrayList<Node> nodeAList = new ArrayList<Node>(A.getNodes());
+
+        for(int i = 0; i < A.getNodes().size(); i++) {
+            Node nodeA = nodeAList.get(i);
+            Node nodeB = B.getNodeById(nodeA.getId());
+            TestCase.assertEquals("NodeId do not match", nodeA.getId(), nodeB.getId());
+            TestCase.assertEquals("num partitions for Node:" + nodeA.getId() + " Do not match",
+                                  nodeA.getNumberOfPartitions(),
+                                  nodeB.getNumberOfPartitions());
+
+            for(int j = 0; j < nodeA.getNumberOfPartitions(); j++) {
+                TestCase.assertEquals("partitionList do not match",
+                                      nodeA.getPartitionIds(),
+                                      nodeB.getPartitionIds());
+            }
+        }
+
+    }
+
+    public static int getPartitionsDiff(Cluster orig, Cluster updated) {
+        int diffPartition = 0;
+
+        System.out.println("cluster A:" + ClusterUtils.GetClusterAsString(orig));
+        System.out.println("cluster B:" + ClusterUtils.GetClusterAsString(updated));
+
+        ArrayList<Node> nodeAList = new ArrayList<Node>(orig.getNodes());
+
+        for(int i = 0; i < orig.getNodes().size(); i++) {
+            Node nodeA = nodeAList.get(i);
+            Node nodeB = updated.getNodeById(nodeA.getId());
+            TestCase.assertEquals("NodeId not present", nodeA.getId(), nodeB.getId());
+
+            SortedSet<Integer> BpartitonSet = new TreeSet<Integer>(nodeB.getPartitionIds());
+            for(int p: nodeA.getPartitionIds()) {
+                if(!BpartitonSet.contains(new Integer(p))) {
+                    diffPartition++;
+                }
+
+            }
+        }
+        return diffPartition;
     }
 }

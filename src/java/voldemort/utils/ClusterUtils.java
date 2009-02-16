@@ -60,7 +60,7 @@ public class ClusterUtils {
             totalPartitons += node.getNumberOfPartitions();
         }
 
-        int numStealPartitons = (int) (totalPartitons / cluster.getNumberOfNodes());
+        int numStealPartitons = (int) (totalPartitons / (cluster.getNumberOfNodes() + 1));
         ArrayList<Integer> stealList = new ArrayList<Integer>();
 
         while(stealList.size() < numStealPartitons) {
@@ -83,6 +83,25 @@ public class ClusterUtils {
         }
 
         return new Cluster(cluster.getName(), nodes);
+    }
+
+    /**
+     * 
+     * @param cluster
+     */
+    public static String GetClusterAsString(Cluster cluster) {
+        StringBuilder builder = new StringBuilder("[");
+        for(Node node: cluster.getNodes()) {
+            builder.append(node + "(");
+            for(Integer p: node.getPartitionIds()) {
+                builder.append(p);
+                builder.append(",");
+            }
+            builder.deleteCharAt(builder.length() - 1);
+            builder.append(") ");
+        }
+        builder.append("]");
+        return builder.toString().trim();
     }
 
     /**
@@ -137,12 +156,12 @@ public class ClusterUtils {
 
     private static class ComparableNode implements Comparable<ComparableNode> {
 
-        private Node node;
-        private ArrayList<Integer> partitons;
+        private Node _node;
+        private ArrayList<Integer> _partitions;
 
         public ComparableNode(Node node, List<Integer> partitions) {
-            this.node = node;
-            this.partitons = partitons;
+            this._node = node;
+            this._partitions = new ArrayList<Integer>(partitions);
         }
 
         public int compareTo(ComparableNode o) {
@@ -150,11 +169,11 @@ public class ClusterUtils {
         }
 
         public Node getNode() {
-            return node;
+            return _node;
         }
 
         public ArrayList<Integer> getPartitions() {
-            return partitons;
+            return _partitions;
         }
     }
 }
