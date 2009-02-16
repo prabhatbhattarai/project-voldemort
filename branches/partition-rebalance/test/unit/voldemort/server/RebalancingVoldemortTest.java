@@ -25,6 +25,7 @@ import junit.framework.TestCase;
 import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
+import voldemort.TestUtils;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.utils.Props;
@@ -76,29 +77,7 @@ public class RebalancingVoldemortTest extends TestCase {
         // update VoldemortServer cluster.xml
         server.updateClusterMetadata(updatedCluster);
 
-        checkClusterMatch(updatedCluster, server.getMetaDataStore().getCluster());
+        TestUtils.checkClusterMatch(updatedCluster, server.getMetaDataStore().getCluster());
     }
 
-    private void checkClusterMatch(Cluster A, Cluster B) {
-        assertEquals("num nodes do not match.", A.getNodes().size(), B.getNodes().size());
-
-        ArrayList<Node> nodeAList = new ArrayList<Node>(A.getNodes());
-        ArrayList<Node> nodeBList = new ArrayList<Node>(B.getNodes());
-
-        for(int i = 0; i < A.getNodes().size(); i++) {
-            Node nodeA = nodeAList.get(i);
-            Node nodeB = nodeBList.get(i);
-            assertEquals("NodeId do not match", nodeA.getId(), nodeB.getId());
-            assertEquals("num partitions for Node:" + nodeA.getId() + " Do not match",
-                         nodeA.getNumberOfPartitions(),
-                         nodeB.getNumberOfPartitions());
-
-            for(int j = 0; j < nodeA.getNumberOfPartitions(); j++) {
-                assertEquals("partitionList do not match",
-                             nodeA.getPartitionIds(),
-                             nodeB.getPartitionIds());
-            }
-        }
-
-    }
 }

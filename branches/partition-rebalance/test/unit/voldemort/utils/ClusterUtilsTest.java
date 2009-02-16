@@ -32,9 +32,29 @@ public class ClusterUtilsTest extends TestCase {
         Cluster cluster = new Cluster("test-cluster", new ArrayList<Node>(nodes));
 
         // add a node and rebalance
-        partitionMap = new int[][] { { 0, 1 }, { 3, 4 }, { 6, 7, 8 }, { 2, 5 } };
-        assertEquals("partitons Map not matching",
-                     partitionMap,
-                     ClusterUtils.updateClusterAddNode(cluster, 3, "", 8084, 6669));
+        assertEquals("Num partitions moved do not match.",
+                     2,
+                     TestUtils.getPartitionsDiff(cluster,
+                                                 ClusterUtils.updateClusterAddNode(cluster,
+                                                                                   3,
+                                                                                   "",
+                                                                                   8084,
+                                                                                   6669)));
+    }
+
+    public void testUpdateClusterAddNode2() {
+        int[][] partitionMap = new int[][] { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8, 9, 10, 11 } };
+        Collection<Node> nodes = TestUtils.createNodes(partitionMap);
+        Cluster cluster = new Cluster("test-cluster", new ArrayList<Node>(nodes));
+
+        // add a node and rebalance
+        assertEquals("Num partitions moved do not match.",
+                     3,
+                     TestUtils.getPartitionsDiff(cluster,
+                                                 ClusterUtils.updateClusterAddNode(cluster,
+                                                                                   4,
+                                                                                   "",
+                                                                                   8084,
+                                                                                   6669)));
     }
 }
