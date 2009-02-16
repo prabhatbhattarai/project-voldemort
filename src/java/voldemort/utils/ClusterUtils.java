@@ -114,11 +114,7 @@ public class ClusterUtils {
      * @param nodeId
      * @return
      */
-    public static Cluster updateClusterDeleteNode(Cluster cluster,
-                                                  int nodeId,
-                                                  String host,
-                                                  int httpPort,
-                                                  int socketPort) {
+    public static Cluster updateClusterDeleteNode(Cluster cluster, int nodeId) {
         Node deletedNode = null;
         PriorityQueue<ComparableNode> queue = new PriorityQueue<ComparableNode>();
         for(Node node: cluster.getNodes()) {

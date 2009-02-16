@@ -57,4 +57,16 @@ public class ClusterUtilsTest extends TestCase {
                                                                                    8084,
                                                                                    6669)));
     }
+
+    public void testUpdateClusterDeleteNode() {
+        int[][] partitionMap = new int[][] { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } };
+        Collection<Node> nodes = TestUtils.createNodes(partitionMap);
+        Cluster cluster = new Cluster("test-cluster", new ArrayList<Node>(nodes));
+
+        // add a node and rebalance
+        assertEquals("Num partitions moved do not match.",
+                     3,
+                     TestUtils.getPartitionsDiff(cluster,
+                                                 ClusterUtils.updateClusterDeleteNode(cluster, 2)));
+    }
 }

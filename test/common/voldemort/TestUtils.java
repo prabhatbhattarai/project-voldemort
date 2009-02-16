@@ -212,8 +212,14 @@ public class TestUtils {
 
         for(int i = 0; i < orig.getNodes().size(); i++) {
             Node nodeA = nodeAList.get(i);
-            Node nodeB = updated.getNodeById(nodeA.getId());
-            TestCase.assertEquals("NodeId not present", nodeA.getId(), nodeB.getId());
+            Node nodeB;
+            try {
+                nodeB = updated.getNodeById(nodeA.getId());
+            } catch(VoldemortException e) {
+                // add the partition in this node
+                diffPartition += nodeA.getNumberOfPartitions();
+                continue;
+            }
 
             SortedSet<Integer> BpartitonSet = new TreeSet<Integer>(nodeB.getPartitionIds());
             for(int p: nodeA.getPartitionIds()) {
