@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import voldemort.VoldemortException;
 import voldemort.cluster.Node;
 
 /**
@@ -44,6 +45,10 @@ public class RouteToAllStrategy implements RoutingStrategy {
 
     public Set<Node> getNodes() {
         return new HashSet<Node>(nodes);
+    }
+
+    public List<Integer> getPartitionList(byte[] key) {
+        throw new VoldemortException("getPartitionList not supported yet for RouteToAllStrategy");
     }
 
 }

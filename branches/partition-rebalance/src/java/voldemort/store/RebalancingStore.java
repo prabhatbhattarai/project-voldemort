@@ -14,13 +14,22 @@
  * the License.
  */
 
-package voldemort.serialization;
+package voldemort.store;
 
-public class VoldemortOpCode {
+import java.io.DataInputStream;
 
-    public static final byte GET_OP_CODE = 1;
-    public static final byte PUT_OP_CODE = 2;
-    public static final byte DELETE_OP_CODE = 3;
-    public static final byte GET_PARTITION_AS_STREAM_OP_CODE = 4;
-    public static final byte PUT_PARTITION_AS_STREAM_OP_CODE = 5;
+/**
+ * Extends {@link Store} to provide partition rebalancing capabilties.
+ * 
+ */
+public interface RebalancingStore extends Store<byte[], byte[]> {
+
+    /**
+     * put all key/value tuples from inputStream to the store.
+     * 
+     * @param inputStream
+     */
+    public void putPartitionsAsStream(DataInputStream inputStream);
+
+    public DataInputStream getPartitionsAsStream(int[] partitionList);
 }
