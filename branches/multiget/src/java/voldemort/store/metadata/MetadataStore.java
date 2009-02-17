@@ -42,7 +42,6 @@ import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 
 public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
 
@@ -91,7 +90,6 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
     }
 
     public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
-        List<Versioned<byte[]>> values = Lists.newArrayList();
         String keyStr = new String(key.get());
         if(!KNOWN_KEYS.contains(keyStr))
             throw new IllegalArgumentException("Unknown metadata key: " + keyStr);

@@ -75,10 +75,10 @@ public class SocketStoreTest extends ByteArrayStoreTest {
     public void testThreadOverload() throws Exception {
         final Store<ByteArray, byte[]> store = getStore();
         final AtomicInteger val = new AtomicInteger(0);
-        int count = 10;
-        final CountDownLatch latch = new CountDownLatch(count);
+        int numOps = 100;
+        final CountDownLatch latch = new CountDownLatch(numOps);
         Executor exec = Executors.newCachedThreadPool();
-        for(int i = 0; i < count; i++) {
+        for(int i = 0; i < numOps; i++) {
             exec.execute(new Runnable() {
 
                 public void run() {
