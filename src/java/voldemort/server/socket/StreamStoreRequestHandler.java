@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import voldemort.VoldemortException;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.store.ErrorCodeMapper;
+import voldemort.store.RebalancingStore;
 import voldemort.store.Store;
 import voldemort.utils.ByteUtils;
 import voldemort.versioning.VectorClock;
@@ -55,29 +56,47 @@ public class StreamStoreRequestHandler {
     public void handleRequest() throws IOException {
         byte opCode = inputStream.readByte();
         String storeName = inputStream.readUTF();
-        int keySize = inputStream.readInt();
-        byte[] key = new byte[keySize];
-        ByteUtils.read(inputStream, key);
         Store<byte[], byte[]> store = storeMap.get(storeName);
+        byte[] key;
         if(store == null) {
             writeException(outputStream, new VoldemortException("No store named '" + storeName
                                                                 + "'."));
         } else {
             switch(opCode) {
                 case VoldemortOpCode.GET_OP_CODE:
+                    key = readKey(inputStream);
                     handleGet(store, key);
                     break;
                 case VoldemortOpCode.PUT_OP_CODE:
+                    key = readKey(inputStream);
                     handlePut(store, key);
                     break;
                 case VoldemortOpCode.DELETE_OP_CODE:
+                    key = readKey(inputStream);
                     handleDelete(store, key);
+                    break;
+                case VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE:
+                    handleGetPartitionsAsStream(store);
+                    break;
+                case VoldemortOpCode.PUT_PARTITION_AS_STREAM_OP_CODE:
+                    handlePutPartitionsAsStream(store);
                     break;
                 default:
                     throw new IOException("Unknown op code: " + opCode);
             }
         }
         outputStream.flush();
+    }
+
+    private byte[] readKey(DataInputStream inputStream) throws IOException {
+        int keySize = inputStream.readInt();
+        if(keySize == -1) {
+            return null;
+        }
+        byte[] key = new byte[keySize];
+        ByteUtils.read(inputStream, key);
+
+        return key;
     }
 
     private void handleGet(Store<byte[], byte[]> store, byte[] key) throws IOException {
@@ -126,6 +145,73 @@ public class StreamStoreRequestHandler {
         } catch(VoldemortException e) {
             writeException(outputStream, e);
         }
+    }
+
+    private void handlePutPartitionsAsStream(Store<byte[], byte[]> store) throws IOException {
+        if(!implementsInterface(store, RebalancingStore.class)) {
+            throw new VoldemortException("Store " + store.getName()
+                                         + " doesnot support Partition Rebalancing");
+
+        }
+        RebalancingStore rebalancingStore = (RebalancingStore) store;
+        try {
+            rebalancingStore.putPartitionsAsStream(inputStream);
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            writeException(outputStream, e);
+        }
+    }
+
+    private void handleGetPartitionsAsStream(Store<byte[], byte[]> store) throws IOException {
+        // check for RebalancingStore and throw error if not.
+        if(!implementsInterface(store, RebalancingStore.class)) {
+            throw new VoldemortException("Store " + store.getName()
+                                         + " doesnot support Partition Rebalancing");
+
+        }
+        RebalancingStore rebalancingStore = (RebalancingStore) store;
+
+        // read partition List
+        int partitionSize = inputStream.readInt();
+        int[] partitionList = new int[partitionSize];
+        for(int i = 0; i < partitionSize; i++) {
+            partitionList[i] = inputStream.readInt();
+        }
+
+        try {
+            DataInputStream storeStream = rebalancingStore.getPartitionsAsStream(partitionList);
+            outputStream.writeShort(0);
+
+            int keySize = storeStream.readInt();
+            while(keySize != -1) {
+                outputStream.writeInt(keySize); // write keySize
+
+                byte[] key = new byte[keySize];
+                ByteUtils.read(inputStream, key);
+                outputStream.write(key); // write key
+
+                int valueSize = inputStream.readInt();
+                outputStream.writeInt(valueSize); // write valueSize
+
+                byte[] value = new byte[valueSize];
+                ByteUtils.read(inputStream, value);
+                outputStream.write(value); // write value
+
+                keySize = storeStream.readInt(); // read New KeySize
+            }
+
+        } catch(VoldemortException e) {
+            writeException(outputStream, e);
+        }
+    }
+
+    private boolean implementsInterface(Object obj, Class ifc) {
+        for(Class c: obj.getClass().getInterfaces()) {
+            if(c.getName().equals(ifc.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void writeException(DataOutputStream stream, VoldemortException e) throws IOException {
