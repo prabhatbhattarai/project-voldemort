@@ -19,21 +19,28 @@ package voldemort.server.admin;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
 import voldemort.VoldemortException;
+import voldemort.cluster.Cluster;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.VoldemortOpCode;
+import voldemort.server.UnableUpdateMetadataException;
+import voldemort.server.VoldemortService;
 import voldemort.store.Entry;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.StorageEngine;
+import voldemort.store.StoreDefinition;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
+import voldemort.xml.ClusterMapper;
+import voldemort.xml.StoreDefinitionsMapper;
 
 /**
  * Responsible for interpreting and handling a single request stream
@@ -47,17 +54,23 @@ public class AdminServiceRequestHandler {
     private final DataOutputStream outputStream;
     private final ConcurrentMap<String, ? extends StorageEngine<byte[], byte[]>> storeMap;
     private final MetadataStore metadataStore;
+    private final List<VoldemortService> serviceList;
+    private final int nodeId;
 
     private ErrorCodeMapper errorMapper = new ErrorCodeMapper();
 
     public AdminServiceRequestHandler(ConcurrentMap<String, ? extends StorageEngine<byte[], byte[]>> storeEngineMap,
                                       DataInputStream inputStream,
                                       DataOutputStream outputStream,
-                                      MetadataStore metadataStore) {
+                                      MetadataStore metadataStore,
+                                      List<VoldemortService> serviceList,
+                                      int nodeId) {
         this.inputStream = inputStream;
         this.outputStream = outputStream;
         this.storeMap = storeEngineMap;
         this.metadataStore = metadataStore;
+        this.serviceList = serviceList;
+        this.nodeId = nodeId;
     }
 
     public void handleRequest() throws IOException {
@@ -74,6 +87,15 @@ public class AdminServiceRequestHandler {
                     break;
                 case VoldemortOpCode.PUT_PARTITION_AS_STREAM_OP_CODE:
                     handlePutPartitionsAsStream(engine);
+                    break;
+                case VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE:
+                    handleUpdateClusterMetadataRequest();
+                    break;
+                case VoldemortOpCode.UPDATE_STORES_METADATA_OP_CODE:
+                    handleUpdateStoresMetadataRequest();
+                    break;
+                case VoldemortOpCode.RESTART_SERVICES:
+                    handleRestartServicesRequest();
                     break;
                 default:
                     throw new IOException("Unknown op code: " + opCode);
@@ -184,6 +206,77 @@ public class AdminServiceRequestHandler {
             outputStream.writeInt(-1); // indicate that all keys are done
         } catch(VoldemortException e) {
             writeException(outputStream, e);
+        }
+    }
+
+    private void handleUpdateClusterMetadataRequest() throws IOException {
+        // get current ClusterInfo
+        List<Versioned<byte[]>> clusterInfo = metadataStore.get(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY,
+                                                                                   "UTF-8"));
+        if(clusterInfo.size() > 1) {
+            throw new UnableUpdateMetadataException("Inconistent Cluster Metdata found on Server:"
+                                                    + nodeId);
+        }
+
+        // update version
+        VectorClock updatedVersion = ((VectorClock) clusterInfo.get(0).getVersion());
+        updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+
+        try {
+            int stringSize = inputStream.readInt();
+            byte[] clusterString = new byte[stringSize];
+            ByteUtils.read(inputStream, clusterString);
+            Cluster updatedCluster = new ClusterMapper().readCluster(new StringReader(new String(clusterString)));
+
+            // update cluster details in metaDataStore
+            metadataStore.put(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY, "UTF-8"),
+                              new Versioned<byte[]>(ByteUtils.getBytes(new ClusterMapper().writeCluster(updatedCluster),
+                                                                       "UTF-8")));
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            e.printStackTrace();
+            writeException(outputStream, e);
+            return;
+        }
+
+    }
+
+    private void handleUpdateStoresMetadataRequest() throws IOException {
+        // get current Store Info
+        List<Versioned<byte[]>> storesInfo = metadataStore.get(ByteUtils.getBytes(MetadataStore.STORES_KEY,
+                                                                                  "UTF-8"));
+        if(storesInfo.size() > 1) {
+            throw new UnableUpdateMetadataException("Inconistent Stores Metdata found on Server:"
+                                                    + nodeId);
+        }
+
+        // update version
+        VectorClock updatedVersion = ((VectorClock) storesInfo.get(0).getVersion());
+        updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+
+        try {
+            int stringSize = inputStream.readInt();
+            byte[] storesString = new byte[stringSize];
+            ByteUtils.read(inputStream, storesString);
+
+            List<StoreDefinition> storeDefs = new StoreDefinitionsMapper().readStoreList(new StringReader(new String(storesString)));
+
+            // update cluster details in metaDataStore
+            metadataStore.put(ByteUtils.getBytes(MetadataStore.STORES_KEY, "UTF-8"),
+                              new Versioned<byte[]>(ByteUtils.getBytes(new StoreDefinitionsMapper().writeStoreList(storeDefs),
+                                                                       "UTF-8")));
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            e.printStackTrace();
+            writeException(outputStream, e);
+            return;
+        }
+    }
+
+    private void handleRestartServicesRequest() {
+        for(VoldemortService service: serviceList) {
+            service.stop();
+            service.start();
         }
     }
 

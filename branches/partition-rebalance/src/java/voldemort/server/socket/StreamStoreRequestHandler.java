@@ -83,9 +83,6 @@ public class StreamStoreRequestHandler {
 
     private byte[] readKey(DataInputStream inputStream) throws IOException {
         int keySize = inputStream.readInt();
-        if(keySize == -1) {
-            return null;
-        }
         byte[] key = new byte[keySize];
         ByteUtils.read(inputStream, key);
 
