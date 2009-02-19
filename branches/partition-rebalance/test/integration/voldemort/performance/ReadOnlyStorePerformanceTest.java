@@ -47,14 +47,14 @@ public class ReadOnlyStorePerformanceTest {
 
         PerformanceTest readWriteTest = new PerformanceTest() {
 
-            private final int MaxMemberID = (int) (30 * 1000 * 1000);
+            private final int MaxMemberID = (int) (1000 * 1000 * 1000);
 
             public void doOperation(int index) throws Exception {
                 try {
                     byte[] bytes = (new Integer((int) (Math.random() * MaxMemberID))).toString()
                                                                                      .getBytes();
                     totalResults.incrementAndGet();
-                    if(null == store.get(bytes)) {
+                    if(store.get(bytes).size() == 0) {
                         nullResults.incrementAndGet();
                     }
                 } catch(ObsoleteVersionException e) {
@@ -64,7 +64,7 @@ public class ReadOnlyStorePerformanceTest {
         };
         readWriteTest.run(numRequests, numThreads);
         System.out.println("Random Access Read Only store Results:");
-        System.out.println("null Reads ratio:" + (nullResults.doubleValue())
+        System.out.println("null Reads ratio:" + (nullResults.intValue())
                            / totalResults.doubleValue());
         readWriteTest.printStats();
     }

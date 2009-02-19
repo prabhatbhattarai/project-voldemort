@@ -129,4 +129,7 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
         return preferenceList;
     }
 
+    public HashFunction getHashFunction() {
+        return hash;
+    }
 }

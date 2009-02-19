@@ -72,6 +72,10 @@ public class VoldemortConfig implements Serializable {
     private int coreThreads;
     private int maxThreads;
 
+    private int adminCoreThreads;
+    private int adminMaxThreads;
+    private long adminStreamBufferSize;
+
     private int socketTimeoutMs;
     private int routingTimeoutMs;
 
@@ -81,6 +85,7 @@ public class VoldemortConfig implements Serializable {
     private boolean enableGui;
     private boolean enableHttpServer;
     private boolean enableSocketServer;
+    private boolean enableAdminSocketServer;
     private boolean enableJmx;
     private boolean enableBdbEngine;
     private boolean enableMysqlEngine;
@@ -138,11 +143,11 @@ public class VoldemortConfig implements Serializable {
         this.enableReadOnlyEngine = props.getBoolean("enable.readonly.engine", false);
         this.readOnlyFileWaitTimeoutMs = props.getLong("readonly.file.wait.timeout.ms", 4000L);
         this.readOnlyBackups = props.getInt("readonly.backups", 1);
-        this.readOnlyFileHandles = props.getInt("readonly.file.handles", 5);
+        this.readOnlyFileHandles = props.getInt("readonly.file.handles", 200);
         this.readOnlyStorageDir = props.getString("readonly.data.directory", this.dataDirectory
                                                                              + File.separator
                                                                              + "read-only");
-        this.readOnlyCacheSize = props.getInt("readonly.cache.size", 100 * 1000 * 1000);
+        this.readOnlyCacheSize = props.getBytes("readonly.cache.size", 100 * 1000 * 1000);
 
         this.slopStoreType = StorageEngineType.fromDisplay(props.getString("slop.store.engine",
                                                                            StorageEngineType.BDB.toDisplay()));
@@ -156,11 +161,16 @@ public class VoldemortConfig implements Serializable {
         this.maxThreads = props.getInt("max.threads", 100);
         this.coreThreads = props.getInt("core.threads", Math.max(1, maxThreads / 2));
 
+        this.adminMaxThreads = props.getInt("admin.max.threads", 2);
+        this.adminCoreThreads = props.getInt("admin.core.threads", 1);
+        this.adminStreamBufferSize = props.getBytes("admin.streams.buffer.size", 10 * 1000 * 1000);
+
         this.socketTimeoutMs = props.getInt("socket.timeout.ms", 4000);
         this.routingTimeoutMs = props.getInt("routing.timeout.ms", 5000);
 
         this.enableHttpServer = props.getBoolean("http.enable", true);
         this.enableSocketServer = props.getBoolean("socket.enable", true);
+        this.enableAdminSocketServer = props.getBoolean("admin.enable", false);
         this.enableJmx = props.getBoolean("jmx.enable", true);
         this.enableSlopDetection = props.getBoolean("slop.detection.enable", false);
         this.enableVerboseLogging = props.getBoolean("enable.verbose.logging", true);
@@ -367,6 +377,28 @@ public class VoldemortConfig implements Serializable {
         this.maxThreads = maxThreads;
     }
 
+    /**
+     * Admin Threads count setting default is core=1 , max = 2
+     * 
+     * @return
+     */
+
+    public int getAdminCoreThreads() {
+        return adminCoreThreads;
+    }
+
+    public void setAdminCoreThreads(int coreThreads) {
+        this.adminCoreThreads = coreThreads;
+    }
+
+    public int getAdminMaxThreads() {
+        return adminMaxThreads;
+    }
+
+    public void setAdminMaxThreads(int maxThreads) {
+        this.adminMaxThreads = maxThreads;
+    }
+
     public boolean isHttpServerEnabled() {
         return enableHttpServer;
     }
@@ -377,6 +409,10 @@ public class VoldemortConfig implements Serializable {
 
     public boolean isSocketServerEnabled() {
         return enableSocketServer;
+    }
+
+    public boolean isAdminServerEnabled() {
+        return enableAdminSocketServer;
     }
 
     public void setEnableSocketServer(boolean enableSocketServer) {
