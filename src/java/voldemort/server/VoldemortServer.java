@@ -62,6 +62,7 @@ public class VoldemortServer extends AbstractService {
     private final ConcurrentHashMap<String, StorageEngine<byte[], byte[]>> storeEngineMap;
     private final VoldemortConfig voldemortConfig;
     private final MetadataStore metadataStore;
+    private final AdminService adminService;
 
     private Cluster cluster;
 
@@ -75,7 +76,8 @@ public class VoldemortServer extends AbstractService {
                                                storeMap);
         this.cluster = this.metadataStore.getCluster();
         this.identityNode = this.cluster.getNodeById(voldemortConfig.getNodeId());
-        this.services = createServices();
+        this.services = createServices(metadataStore);
+        this.adminService = createAdminService(metadataStore, services);
     }
 
     public VoldemortServer(Props props, Cluster cluster) {
@@ -85,13 +87,26 @@ public class VoldemortServer extends AbstractService {
         this.identityNode = cluster.getNodeById(voldemortConfig.getNodeId());
         this.storeMap = new ConcurrentHashMap<String, Store<byte[], byte[]>>();
         this.storeEngineMap = new ConcurrentHashMap<String, StorageEngine<byte[], byte[]>>();
-        this.services = createServices();
         this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
                                                                            voldemortConfig.getMetadataDirectory()),
                                                storeMap);
+        this.services = createServices(metadataStore);
+        this.adminService = createAdminService(metadataStore, services);
     }
 
-    protected List<VoldemortService> createServices() {
+    private AdminService createAdminService(MetadataStore metaStore,
+                                            List<VoldemortService> serviceList) {
+        return new AdminService("admin-service",
+                                storeEngineMap,
+                                identityNode.getAdminSocketPort(),
+                                voldemortConfig.getAdminCoreThreads(),
+                                voldemortConfig.getAdminMaxThreads(),
+                                metaStore,
+                                serviceList,
+                                identityNode.getId());
+    }
+
+    private List<VoldemortService> createServices(MetadataStore metaStore) {
         List<VoldemortService> services = Collections.synchronizedList(new ArrayList<VoldemortService>());
         SchedulerService scheduler = new SchedulerService("scheduler-service",
                                                           voldemortConfig.getSchedulerThreads(),
@@ -102,7 +117,7 @@ public class VoldemortServer extends AbstractService {
                                         this.storeEngineMap,
                                         scheduler,
                                         voldemortConfig,
-                                        metadataStore));
+                                        metaStore));
         if(voldemortConfig.isHttpServerEnabled())
             services.add(new HttpService("http-service",
                                          this,
@@ -114,17 +129,6 @@ public class VoldemortServer extends AbstractService {
                                            identityNode.getSocketPort(),
                                            voldemortConfig.getCoreThreads(),
                                            voldemortConfig.getMaxThreads()));
-        if(voldemortConfig.isAdminServerEnabled()) {
-            services.add(new AdminService("admin-service",
-                                          storeEngineMap,
-                                          identityNode.getAdminSocketPort(),
-                                          voldemortConfig.getAdminCoreThreads(),
-                                          voldemortConfig.getAdminMaxThreads(),
-                                          metadataStore));
-        } else {
-            logger.warn("Admin Service is disabled and will not be started.");
-        }
-
         if(voldemortConfig.isJmxEnabled())
             services.add(new JmxService("jmx-service", this, cluster, storeMap, services));
 

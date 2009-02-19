@@ -16,6 +16,7 @@
 
 package voldemort.server.admin;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
 import voldemort.annotations.jmx.JmxGetter;
@@ -41,9 +42,17 @@ public class AdminService extends AbstractService implements VoldemortService {
                         int port,
                         int coreConnections,
                         int maxConnections,
-                        MetadataStore metadataStore) {
+                        MetadataStore metadataStore,
+                        List<VoldemortService> serviceList,
+                        int nodeId) {
         super(name);
-        this.server = new AdminServer(storeMap, port, coreConnections, maxConnections, metadataStore);
+        this.server = new AdminServer(storeMap,
+                                      port,
+                                      coreConnections,
+                                      maxConnections,
+                                      metadataStore,
+                                      serviceList,
+                                      nodeId);
     }
 
     @Override

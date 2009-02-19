@@ -27,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
+import voldemort.server.VoldemortService;
 import voldemort.store.StorageEngine;
 import voldemort.store.metadata.MetadataStore;
 
@@ -60,6 +62,8 @@ public class AdminServer extends Thread {
     private final ThreadGroup threadGroup;
     private final CountDownLatch isStarted = new CountDownLatch(1);
     private final MetadataStore metadataStore;
+    private final List<VoldemortService> serviceList;
+    private final int nodeId;
     private ServerSocket adminSocket = null;
 
     private final ThreadFactory threadFactory = new ThreadFactory() {
@@ -93,7 +97,9 @@ public class AdminServer extends Thread {
                        int port,
                        int defaultThreads,
                        int maxThreads,
-                       MetadataStore metadataStore) {
+                       MetadataStore metadataStore,
+                       List<VoldemortService> serviceList,
+                       int nodeId) {
         this.port = port;
         this.threadGroup = new ThreadGroup("VoldemortRawSocketHandler");
         this.storeMap = storeMap;
@@ -105,6 +111,8 @@ public class AdminServer extends Thread {
                                                  threadFactory,
                                                  rejectedExecutionHandler);
         this.metadataStore = metadataStore;
+        this.serviceList = serviceList;
+        this.nodeId = nodeId;
     }
 
     @Override
@@ -196,7 +204,9 @@ public class AdminServer extends Thread {
                                                                                                                                 1000)),
                                                                                     new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),
                                                                                                                                   1000)),
-                                                                                    metadataStore);
+                                                                                    metadataStore,
+                                                                                    serviceList,
+                                                                                    nodeId);
                 while(!Thread.currentThread().isInterrupted()) {
                     handler.handleRequest();
                 }

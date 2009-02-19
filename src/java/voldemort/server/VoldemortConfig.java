@@ -170,7 +170,7 @@ public class VoldemortConfig implements Serializable {
 
         this.enableHttpServer = props.getBoolean("http.enable", true);
         this.enableSocketServer = props.getBoolean("socket.enable", true);
-        this.enableAdminSocketServer = props.getBoolean("admin.enable", false);
+        this.enableAdminSocketServer = props.getBoolean("admin.enable", true);
         this.enableJmx = props.getBoolean("jmx.enable", true);
         this.enableSlopDetection = props.getBoolean("slop.detection.enable", false);
         this.enableVerboseLogging = props.getBoolean("enable.verbose.logging", true);
