@@ -81,6 +81,7 @@ public class StorageService extends AbstractService {
     private final ConcurrentMap<String, Store<byte[], byte[]>> localStoreMap;
     private final Map<String, StorageEngine<byte[], byte[]>> rawEngines;
     private final ConcurrentMap<StorageEngineType, StorageConfiguration> storageConfigurations;
+    private final ConcurrentMap<String, StorageEngine<byte[], byte[]>> storeEngineMap;
     private final StoreDefinitionsMapper storeMapper;
     private final SchedulerService scheduler;
     private final Map<String, RandomAccessFileStore> readOnlyStores;
@@ -89,6 +90,7 @@ public class StorageService extends AbstractService {
 
     public StorageService(String name,
                           ConcurrentMap<String, Store<byte[], byte[]>> storeMap,
+                          ConcurrentMap<String, StorageEngine<byte[], byte[]>> storeEngineMap,
                           SchedulerService scheduler,
                           VoldemortConfig config,
                           MetadataStore metaDataStore) {
@@ -101,6 +103,7 @@ public class StorageService extends AbstractService {
         this.storageConfigurations = initStorageConfigurations(config);
         this.metadataStore = metaDataStore;
         this.readOnlyStores = new ConcurrentHashMap<String, RandomAccessFileStore>();
+        this.storeEngineMap = storeEngineMap;
     }
 
     private ConcurrentMap<StorageEngineType, StorageConfiguration> initStorageConfigurations(VoldemortConfig config) {
@@ -160,6 +163,7 @@ public class StorageService extends AbstractService {
                 if(voldemortConfig.isStatTrackingEnabled())
                     store = new StatTrackingStore<byte[], byte[]>(store);
                 this.localStoreMap.put(def.getName(), store);
+                this.storeEngineMap.put(def.getName(), engine);
             }
         }
         logger.info("All stores initialized.");

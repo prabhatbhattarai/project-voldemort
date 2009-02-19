@@ -148,6 +148,17 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
                                                                                                 "UTF-8")))));
     }
 
+    public StoreDefinition getStore(String storeName) {
+        List<StoreDefinition> storeDefs = storeMapper.readStoreList(new StringReader(getSingleValue(get(ByteUtils.getBytes(STORES_KEY,
+                                                                                                                           "UTF-8")))));
+        for(StoreDefinition storeDef: storeDefs) {
+            if(storeName.equals(storeDef.getName()))
+                return storeDef;
+        }
+
+        throw new VoldemortException("Store " + storeName + " not found in MetadataStore");
+    }
+
     public String getSingleValue(List<Versioned<byte[]>> found) {
         if(found.size() != 1)
             throw new VoldemortException("Inconsistent metadata found: expected 1 version but found "

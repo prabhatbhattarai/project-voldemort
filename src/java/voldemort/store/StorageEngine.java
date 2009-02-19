@@ -48,5 +48,4 @@ public interface StorageEngine<K, V> extends Store<K, V> {
      *         iterator MUST be closed after use.
      */
     public ClosableIterator<Entry<K, Versioned<V>>> entries();
-
 }

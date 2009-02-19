@@ -134,8 +134,8 @@ public class RebalancingStoreClient<K, V> extends DefaultStoreClient<K, V> {
         if(storeDef == null)
             throw new BootstrapFailureException("Unknown store '" + getStore().getName() + "'.");
 
-        // create routing strategy
-        RoutingStrategy routingStrategy = new ConsistentRoutingStrategy(cluster.getNodes(),
+        RoutingStrategy routingStrategy = new ConsistentRoutingStrategy(((ConsistentRoutingStrategy) getRoutingStrategy()).getHashFunction(),
+                                                                        cluster.getNodes(),
                                                                         storeDef.getReplicationFactor());
         return routingStrategy;
     }
