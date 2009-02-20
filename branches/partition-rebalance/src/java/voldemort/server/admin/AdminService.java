@@ -29,7 +29,7 @@ import voldemort.store.metadata.MetadataStore;
 /**
  * The VoldemortService that loads up the socket server
  * 
- * @author jay
+ * @author bbansal
  * 
  */
 @JmxManaged(description = "A server that handles remote operations on stores via tcp/ip.")

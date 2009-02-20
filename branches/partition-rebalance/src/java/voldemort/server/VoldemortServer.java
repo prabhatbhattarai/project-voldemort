@@ -66,6 +66,11 @@ public class VoldemortServer extends AbstractService {
 
     private Cluster cluster;
 
+    public static enum SERVER_STATE {
+        NORMAL_STATE,
+        REBALANCING_STATE,
+    };
+
     public VoldemortServer(VoldemortConfig config) {
         super("voldemort-server");
         this.voldemortConfig = config;
@@ -98,7 +103,7 @@ public class VoldemortServer extends AbstractService {
                                             List<VoldemortService> serviceList) {
         return new AdminService("admin-service",
                                 storeEngineMap,
-                                identityNode.getAdminSocketPort(),
+                                identityNode.getAdminPort(),
                                 voldemortConfig.getAdminCoreThreads(),
                                 voldemortConfig.getAdminMaxThreads(),
                                 metaStore,

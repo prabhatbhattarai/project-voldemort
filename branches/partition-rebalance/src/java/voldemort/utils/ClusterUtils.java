@@ -43,25 +43,21 @@ public class ClusterUtils {
      * @param nodeId
      * @return
      */
-    public static Cluster updateClusterAddNode(Cluster cluster,
-                                               int nodeId,
-                                               String host,
-                                               int httpPort,
-                                               int socketPort) {
+    public static Cluster updateClusterStealPartitions(Cluster cluster, Node newNode) {
         int totalPartitons = 0;
         PriorityQueue<ComparableNode> queue = new PriorityQueue<ComparableNode>(cluster.getNumberOfNodes(),
                                                                                 Collections.reverseOrder());
         for(Node node: cluster.getNodes()) {
-            if(node.getId() == nodeId) {
-                throw new IllegalArgumentException("nodeID:" + nodeId
-                                                   + " already present in  cluster.");
+            if(node.getId() != newNode.getId()) {
+                queue.add(new ComparableNode(node, node.getPartitionIds()));
             }
-            queue.add(new ComparableNode(node, node.getPartitionIds()));
             totalPartitons += node.getNumberOfPartitions();
         }
 
-        int numStealPartitons = (int) (totalPartitons / (cluster.getNumberOfNodes() + 1));
-        ArrayList<Integer> stealList = new ArrayList<Integer>();
+        int numStealPartitons = (int) (totalPartitons / (queue.size() + 1));
+
+        // initialize stealList with existing partitions.
+        ArrayList<Integer> stealList = new ArrayList<Integer>(newNode.getPartitionIds());
 
         while(stealList.size() < numStealPartitons) {
             ComparableNode node = queue.poll();
@@ -73,7 +69,14 @@ public class ClusterUtils {
 
         // Lets make the new Cluster now !!
         ArrayList<Node> nodes = new ArrayList<Node>();
-        nodes.add(new Node(nodeId, host, socketPort, httpPort, stealList));
+        nodes.add(new Node(newNode.getId(),
+                           newNode.getHost(),
+                           newNode.getHttpPort(),
+                           newNode.getSocketPort(),
+                           newNode.getAdminPort(),
+                           stealList,
+                           newNode.getStatus()));
+
         for(ComparableNode node: queue) {
             nodes.add(new Node(node.getNode().getId(),
                                node.getNode().getHost(),

@@ -87,6 +87,11 @@ public class StoreServlet extends HttpServlet {
         return store;
     }
 
+    /**
+     * TODO support {@link VoldemortServer#REBALANCING_STATE} Get should
+     * Redirect depending on old cluster configuration see {@link SocketServer}
+     * implementation for reference
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {

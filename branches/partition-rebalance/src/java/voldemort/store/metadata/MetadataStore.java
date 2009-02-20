@@ -42,6 +42,8 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
     public static final String METADATA_STORE_NAME = "metadata";
     public static final String CLUSTER_KEY = "cluster.xml";
     public static final String STORES_KEY = "stores.xml";
+    public static final String SERVER_STATE_KEY = "server.state";
+    public static final String ORIGINAL_CLUSTER_KEY = "rebalanced.cluster.xml";
 
     private final Store<String, String> innerStore;
     private final ClusterMapper clusterMapper;
