@@ -108,7 +108,7 @@ public class FilesystemStorageEngine implements StorageEngine<String, String> {
         File[] files = this.directory.listFiles();
         for(File file: files) {
             if(file.getName().startsWith(key)) {
-             // TODO : MED emacs garbage files ~ etc.
+                // TODO MED: emacs garbage files ~ etc.
                 VectorClock clock = getVersion(file);
                 if(clock.compare(value.getVersion()) == Occured.AFTER)
                     throw new ObsoleteVersionException("A successor version to this exists.");
@@ -116,7 +116,6 @@ public class FilesystemStorageEngine implements StorageEngine<String, String> {
                     // Add the file to deleteList
                     deleteList.add(file.getAbsolutePath());
                 }
-
             }
         }
 

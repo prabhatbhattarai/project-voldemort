@@ -29,6 +29,7 @@ import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.server.UnableUpdateMetadataException;
+import voldemort.server.VoldemortServer;
 import voldemort.server.VoldemortService;
 import voldemort.store.Entry;
 import voldemort.store.ErrorCodeMapper;
@@ -43,9 +44,9 @@ import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
 
 /**
- * Responsible for interpreting and handling a single request stream
+ * Responsible for interpreting and handling a Admin Request Stream
  * 
- * @author jay
+ * @author bbansal
  * 
  */
 public class AdminServiceRequestHandler {
@@ -75,33 +76,62 @@ public class AdminServiceRequestHandler {
 
     public void handleRequest() throws IOException {
         byte opCode = inputStream.readByte();
+        StorageEngine<byte[], byte[]> engine;
+        switch(opCode) {
+            case VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE:
+                engine = readStorageEngine();
+                if(engine != null)
+                    handleGetPartitionsAsStream(engine);
+                break;
+            case VoldemortOpCode.PUT_PARTITION_AS_STREAM_OP_CODE:
+                engine = readStorageEngine();
+                if(engine != null)
+                    handlePutPartitionsAsStream(engine);
+                break;
+            case VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE:
+                handleUpdateClusterMetadataRequest();
+                break;
+            case VoldemortOpCode.UPDATE_STORES_METADATA_OP_CODE:
+                handleUpdateStoresMetadataRequest();
+                break;
+            case VoldemortOpCode.RESTART_SERVICES_OP_CODE:
+                handleRestartServicesRequest();
+                break;
+            case VoldemortOpCode.REBALANCING_SERVER_MODE_OP_CODE:
+                handleRebalancingServerModeRequest();
+                break;
+            case VoldemortOpCode.NORMAL_SERVER_MODE_OP_CODE:
+                handleNormalServerModeRequest();
+                break;
+            case VoldemortOpCode.REDIRECT_GET_OP_CODE:
+                engine = readStorageEngine();
+                byte[] key = readKey(inputStream);
+                handleRedirectGetRequest(engine, key);
+                break;
+            default:
+                throw new IOException("Unknown op code: " + opCode);
+        }
+
+        outputStream.flush();
+    }
+
+    private byte[] readKey(DataInputStream inputStream) throws IOException {
+        int keySize = inputStream.readInt();
+        byte[] key = new byte[keySize];
+        ByteUtils.read(inputStream, key);
+
+        return key;
+    }
+
+    private StorageEngine<byte[], byte[]> readStorageEngine() throws IOException {
         String storeName = inputStream.readUTF();
         StorageEngine<byte[], byte[]> engine = storeMap.get(storeName);
         if(engine == null) {
             writeException(outputStream, new VoldemortException("No store named '" + storeName
                                                                 + "'."));
-        } else {
-            switch(opCode) {
-                case VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE:
-                    handleGetPartitionsAsStream(engine);
-                    break;
-                case VoldemortOpCode.PUT_PARTITION_AS_STREAM_OP_CODE:
-                    handlePutPartitionsAsStream(engine);
-                    break;
-                case VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE:
-                    handleUpdateClusterMetadataRequest();
-                    break;
-                case VoldemortOpCode.UPDATE_STORES_METADATA_OP_CODE:
-                    handleUpdateStoresMetadataRequest();
-                    break;
-                case VoldemortOpCode.RESTART_SERVICES:
-                    handleRestartServicesRequest();
-                    break;
-                default:
-                    throw new IOException("Unknown op code: " + opCode);
-            }
         }
-        outputStream.flush();
+
+        return engine;
     }
 
     /**
@@ -183,6 +213,10 @@ public class AdminServiceRequestHandler {
                                                                         metadataStore.getStore(engine.getName())
                                                                                      .getReplicationFactor());
         try {
+            /**
+             * TODO HIGH: This way to iterate over all keys is not optimal
+             * stores should be made routing aware to fix this problem
+             */
             ClosableIterator<Entry<byte[], Versioned<byte[]>>> iterator = engine.entries();
             outputStream.writeShort(0);
 
@@ -203,6 +237,8 @@ public class AdminServiceRequestHandler {
                     outputStream.write(value);
                 }
             }
+            // close the iterator here
+            iterator.close();
             outputStream.writeInt(-1); // indicate that all keys are done
         } catch(VoldemortException e) {
             writeException(outputStream, e);
@@ -210,12 +246,13 @@ public class AdminServiceRequestHandler {
     }
 
     private void handleUpdateClusterMetadataRequest() throws IOException {
+        String cluster_key = inputStream.readUTF();
         // get current ClusterInfo
-        List<Versioned<byte[]>> clusterInfo = metadataStore.get(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY,
+        List<Versioned<byte[]>> clusterInfo = metadataStore.get(ByteUtils.getBytes(cluster_key,
                                                                                    "UTF-8"));
         if(clusterInfo.size() > 1) {
             throw new UnableUpdateMetadataException("Inconistent Cluster Metdata found on Server:"
-                                                    + nodeId);
+                                                    + nodeId + " for Key:" + cluster_key);
         }
 
         // update version
@@ -223,15 +260,15 @@ public class AdminServiceRequestHandler {
         updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
 
         try {
-            int stringSize = inputStream.readInt();
-            byte[] clusterString = new byte[stringSize];
-            ByteUtils.read(inputStream, clusterString);
-            Cluster updatedCluster = new ClusterMapper().readCluster(new StringReader(new String(clusterString)));
+            String clusterString = inputStream.readUTF();
+
+            Cluster updatedCluster = new ClusterMapper().readCluster(new StringReader(clusterString));
 
             // update cluster details in metaDataStore
-            metadataStore.put(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY, "UTF-8"),
+            metadataStore.put(ByteUtils.getBytes(cluster_key, "UTF-8"),
                               new Versioned<byte[]>(ByteUtils.getBytes(new ClusterMapper().writeCluster(updatedCluster),
-                                                                       "UTF-8")));
+                                                                       "UTF-8"),
+                                                    updatedVersion));
             outputStream.writeShort(0);
         } catch(VoldemortException e) {
             e.printStackTrace();
@@ -255,16 +292,15 @@ public class AdminServiceRequestHandler {
         updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
 
         try {
-            int stringSize = inputStream.readInt();
-            byte[] storesString = new byte[stringSize];
-            ByteUtils.read(inputStream, storesString);
+            String storesString = inputStream.readUTF();
 
             List<StoreDefinition> storeDefs = new StoreDefinitionsMapper().readStoreList(new StringReader(new String(storesString)));
 
             // update cluster details in metaDataStore
             metadataStore.put(ByteUtils.getBytes(MetadataStore.STORES_KEY, "UTF-8"),
                               new Versioned<byte[]>(ByteUtils.getBytes(new StoreDefinitionsMapper().writeStoreList(storeDefs),
-                                                                       "UTF-8")));
+                                                                       "UTF-8"),
+                                                    updatedVersion));
             outputStream.writeShort(0);
         } catch(VoldemortException e) {
             e.printStackTrace();
@@ -277,6 +313,56 @@ public class AdminServiceRequestHandler {
         for(VoldemortService service: serviceList) {
             service.stop();
             service.start();
+        }
+    }
+
+    private void handleRebalancingServerModeRequest() {
+        List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
+                                                                                   "UTF-8"));
+
+        // update version
+        VectorClock updatedVersion = ((VectorClock) serverState.get(0).getVersion());
+        updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+
+        metadataStore.put(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY, "UTF-8"),
+                          new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.REBALANCING_STATE.toString(),
+                                                                   "UTF-8"),
+                                                updatedVersion));
+
+    }
+
+    private void handleNormalServerModeRequest() {
+        List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
+                                                                                   "UTF-8"));
+
+        // update version
+        VectorClock updatedVersion = ((VectorClock) serverState.get(0).getVersion());
+        updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+
+        metadataStore.put(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY, "UTF-8"),
+                          new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.NORMAL_STATE.toString(),
+                                                                   "UTF-8"),
+                                                updatedVersion));
+
+    }
+
+    private void handleRedirectGetRequest(StorageEngine engine, byte[] key) throws IOException {
+        List<Versioned<byte[]>> results = null;
+        try {
+            results = engine.get(key);
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            e.printStackTrace();
+            writeException(outputStream, e);
+            return;
+        }
+        outputStream.writeInt(results.size());
+        for(Versioned<byte[]> v: results) {
+            byte[] clock = ((VectorClock) v.getVersion()).toBytes();
+            byte[] value = v.getValue();
+            outputStream.writeInt(clock.length + value.length);
+            outputStream.write(clock);
+            outputStream.write(value);
         }
     }
 

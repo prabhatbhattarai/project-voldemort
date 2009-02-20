@@ -86,7 +86,7 @@ public class Node implements Serializable {
         return socketPort;
     }
 
-    public int getAdminSocketPort() {
+    public int getAdminPort() {
         return adminSocketPort;
     }
 

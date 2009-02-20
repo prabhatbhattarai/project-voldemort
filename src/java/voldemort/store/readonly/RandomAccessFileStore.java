@@ -258,8 +258,8 @@ public class RandomAccessFileStore implements StorageEngine<byte[], byte[]> {
             if(cmp == 0) {
                 // they are equal, return the location stored here
                 if(cached) {
-                    index.seek(mid * chunkSize);
-                    index.readFully(foundKey);
+                    index.seek(mid * chunkSize + KEY_HASH_SIZE);
+                    return index.readLong();
                 }
                 return index.readLong();
             } else if(cmp > 0) {

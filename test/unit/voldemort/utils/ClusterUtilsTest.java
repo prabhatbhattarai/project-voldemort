@@ -35,11 +35,12 @@ public class ClusterUtilsTest extends TestCase {
         assertEquals("Num partitions moved do not match.",
                      2,
                      TestUtils.getPartitionsDiff(cluster,
-                                                 ClusterUtils.updateClusterAddNode(cluster,
-                                                                                   3,
-                                                                                   "",
-                                                                                   8084,
-                                                                                   6669)));
+                                                 ClusterUtils.updateClusterStealPartitions(cluster,
+                                                                                           new Node(3,
+                                                                                                    "",
+                                                                                                    8084,
+                                                                                                    6669,
+                                                                                                    new ArrayList<Integer>()))));
     }
 
     public void testUpdateClusterAddNode2() {
@@ -51,11 +52,12 @@ public class ClusterUtilsTest extends TestCase {
         assertEquals("Num partitions moved do not match.",
                      3,
                      TestUtils.getPartitionsDiff(cluster,
-                                                 ClusterUtils.updateClusterAddNode(cluster,
-                                                                                   4,
-                                                                                   "",
-                                                                                   8084,
-                                                                                   6669)));
+                                                 ClusterUtils.updateClusterStealPartitions(cluster,
+                                                                                           new Node(4,
+                                                                                                    "",
+                                                                                                    8084,
+                                                                                                    6669,
+                                                                                                    new ArrayList<Integer>()))));
     }
 
     public void testUpdateClusterDeleteNode() {

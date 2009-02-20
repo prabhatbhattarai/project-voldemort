@@ -63,7 +63,7 @@ public class RebalancingVoldemortTest extends TestCase {
     }
 
     public void testUpdateCluster() {
-        RebalancingVoldemortServer server = new RebalancingVoldemortServer(config);
+        VoldemortServer server = new VoldemortServer(config);
         Cluster cluster = server.getMetaDataStore().getCluster();
 
         // add node 3 and partition 4,5 to cluster.

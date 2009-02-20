@@ -36,8 +36,8 @@ import voldemort.serialization.ObjectSerializer;
 import voldemort.serialization.Serializer;
 import voldemort.serialization.SerializerDefinition;
 import voldemort.serialization.SerializerFactory;
-import voldemort.server.RebalancingVoldemortServer;
 import voldemort.server.VoldemortConfig;
+import voldemort.server.VoldemortServer;
 import voldemort.store.FailingStore;
 import voldemort.store.InvalidMetadataException;
 import voldemort.store.StoreDefinition;
@@ -50,7 +50,7 @@ import voldemort.utils.Props;
 public class RebalancingStoreClientTest extends TestCase {
 
     private static String dir = "test/unit/temp-output";
-    RebalancingVoldemortServer server;
+    VoldemortServer server;
 
     @Override
     public void setUp() throws IOException {
@@ -79,13 +79,13 @@ public class RebalancingStoreClientTest extends TestCase {
         FileUtils.copyFileToDirectory(new File("test/common/voldemort/config/cluster.xml"), tempDir);
         FileUtils.copyFileToDirectory(new File("test/common/voldemort/config/stores.xml"), tempDir);
 
-        server = new RebalancingVoldemortServer(config);
+        server = new VoldemortServer(config);
         server.start();
 
         return server.getMetaDataStore().getCluster();
     }
 
-    private void updateCluster(RebalancingVoldemortServer server) {
+    private void updateCluster(VoldemortServer server) {
         Cluster cluster = server.getMetaDataStore().getCluster();
 
         // add node 2 and move partition 1 to node 2.
