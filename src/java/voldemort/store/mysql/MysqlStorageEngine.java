@@ -245,7 +245,6 @@ public class MysqlStorageEngine implements StorageEngine<ByteArray, byte[]> {
             insert.executeUpdate();
         } catch(SQLException e) {
             if(e.getErrorCode() == MYSQL_ERR_DUP_KEY || e.getErrorCode() == MYSQL_ERR_DUP_ENTRY) {
-                e.printStackTrace();
                 throw new ObsoleteVersionException("Key or value already used.");
             } else {
                 throw new PersistenceFailureException("Fix me!", e);

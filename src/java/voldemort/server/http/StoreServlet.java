@@ -174,7 +174,7 @@ public class StoreServlet extends HttpServlet {
             byte[] key = ByteUtils.getBytes(keyStr, "UTF-8");
             return new ByteArray(urlCodec.decode(key));
         } catch(DecoderException e) {
-            throw new VoldemortException("Corrupt key format.");
+            throw new VoldemortException("Corrupt key format.", e);
         }
     }
 

@@ -93,10 +93,6 @@ public class VoldemortConfig implements Serializable {
 
     private final long pusherPollMs;
 
-    public VoldemortConfig() {
-        this(new Props());
-    }
-
     public VoldemortConfig(Properties props) {
         this(new Props(props));
     }
@@ -194,7 +190,7 @@ public class VoldemortConfig implements Serializable {
             return Integer.parseInt(var);
         } catch(NumberFormatException e) {
             throw new ConfigurationException("Invalid format for environment variable " + name
-                                             + ", expecting an integer.");
+                                             + ", expecting an integer.", e);
         }
     }
 
