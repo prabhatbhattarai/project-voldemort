@@ -279,10 +279,6 @@ public class RoutedStore implements Store<ByteArray, byte[]> {
 
                     public void run() {
                         try {
-                            for(Store store: innerStores.values()) {
-                                logger.info("storeID: " + store.getName() + " Class:"
-                                            + store.getClass().toString());
-                            }
                             List<Versioned<byte[]>> fetched = innerStores.get(node.getId())
                                                                          .get(key);
                             retrieved.addAll(fetched);
@@ -336,6 +332,9 @@ public class RoutedStore implements Store<ByteArray, byte[]> {
             nodeIndex++;
         }
 
+        if(logger.isDebugEnabled())
+            logger.debug("GET retrieved the following node values: " + formatNodeValues(nodeValues));
+
         // if we have multiple values, do any necessary repairs
         if(repairReads && retrieved.size() > 1) {
             this.executor.execute(new Runnable() {
@@ -368,6 +367,19 @@ public class RoutedStore implements Store<ByteArray, byte[]> {
                                                                     + successes.get()
                                                                     + " succeeded.",
                                                             failures);
+    }
+
+    private String formatNodeValues(List<NodeValue<ByteArray, byte[]>> nodeValues) {
+        // log all retrieved values
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        for(NodeValue<ByteArray, byte[]> v: nodeValues) {
+            builder.append(v.toString());
+            builder.append(", ");
+        }
+        builder.append("}");
+
+        return builder.toString();
     }
 
     public String getName() {
@@ -473,7 +485,7 @@ public class RoutedStore implements Store<ByteArray, byte[]> {
                 if(successes.get() >= this.preferredWrites)
                     break;
             } catch(InterruptedException e) {
-                throw new InsufficientOperationalNodesException("Put operation interrupted");
+                throw new InsufficientOperationalNodesException("Put operation interrupted", e);
             }
         }
 
