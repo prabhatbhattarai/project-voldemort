@@ -22,7 +22,7 @@ public class VoldemortOpCode {
     public static final byte PUT_OP_CODE = 2;
     public static final byte DELETE_OP_CODE = 3;
     public static final byte GET_PARTITION_AS_STREAM_OP_CODE = 4;
-    public static final byte PUT_PARTITION_AS_STREAM_OP_CODE = 5;
+    public static final byte PUT_ENTRIES_AS_STREAM_OP_CODE = 5;
     public static final byte UPDATE_CLUSTER_METADATA_OP_CODE = 6;
     public static final byte UPDATE_STORES_METADATA_OP_CODE = 7;
     public static final byte RESTART_SERVICES_OP_CODE = 8;

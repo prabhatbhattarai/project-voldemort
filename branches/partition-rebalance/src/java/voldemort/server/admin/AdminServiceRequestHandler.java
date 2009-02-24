@@ -84,10 +84,10 @@ public class AdminServiceRequestHandler {
                 if(engine != null)
                     handleGetPartitionsAsStream(engine);
                 break;
-            case VoldemortOpCode.PUT_PARTITION_AS_STREAM_OP_CODE:
+            case VoldemortOpCode.PUT_ENTRIES_AS_STREAM_OP_CODE:
                 engine = readStorageEngine();
                 if(engine != null)
-                    handlePutPartitionsAsStream(engine);
+                    handlePutEntriesAsStream(engine);
                 break;
             case VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE:
                 handleUpdateClusterMetadataRequest();
@@ -110,7 +110,7 @@ public class AdminServiceRequestHandler {
                 handleRedirectGetRequest(engine, key);
                 break;
             default:
-                throw new IOException("Unknown op code: " + opCode);
+                throw new IOException("Unknown op code : " + opCode + " at Node:" + nodeId);
         }
 
         outputStream.flush();
@@ -154,8 +154,7 @@ public class AdminServiceRequestHandler {
      * @param engine
      * @throws IOException
      */
-    private void handlePutPartitionsAsStream(StorageEngine<byte[], byte[]> engine)
-            throws IOException {
+    private void handlePutEntriesAsStream(StorageEngine<byte[], byte[]> engine) throws IOException {
         try {
             int keySize = inputStream.readInt();
             while(keySize != -1) {
@@ -165,11 +164,16 @@ public class AdminServiceRequestHandler {
                 int valueSize = inputStream.readInt();
                 byte[] value = new byte[valueSize];
                 ByteUtils.read(inputStream, value);
+
                 VectorClock clock = new VectorClock(value);
                 Versioned<byte[]> versionedValue = new Versioned<byte[]>(ByteUtils.copy(value,
                                                                                         clock.sizeInBytes(),
                                                                                         value.length),
                                                                          clock);
+                // TODO: clean this after all testing
+                System.out.println("put(Node:" + nodeId + " store:" + engine.getName() + ") key:"
+                                   + new String(key) + " value:"
+                                   + new String(versionedValue.getValue()));
                 engine.put(key, versionedValue);
 
                 keySize = inputStream.readInt(); // read next KeySize
@@ -219,28 +223,39 @@ public class AdminServiceRequestHandler {
              * stores should be made routing aware to fix this problem
              */
             ClosableIterator<Entry<byte[], Versioned<byte[]>>> iterator = engine.entries();
-            outputStream.writeShort(0);
 
             while(iterator.hasNext()) {
                 Entry<byte[], Versioned<byte[]>> entry = iterator.next();
+
                 if(validPartition(entry.getKey(), partitionList, routingStrategy)) {
+                    outputStream.writeShort(0);
+
                     // write key
                     byte[] key = entry.getKey();
                     outputStream.writeInt(key.length);
                     outputStream.write(key);
 
                     // write value
-                    outputStream.writeInt(1);
                     byte[] clock = ((VectorClock) entry.getValue().getVersion()).toBytes();
                     byte[] value = entry.getValue().getValue();
+
+                    // TODO: clean this after all testing
+                    System.out.println("get(Node:" + nodeId + " store:" + engine.getName()
+                                       + ") key:" + new String(key) + " value:" + new String(value));
+
                     outputStream.writeInt(clock.length + value.length);
                     outputStream.write(clock);
                     outputStream.write(value);
+
+                    outputStream.flush();
                 }
             }
             // close the iterator here
             iterator.close();
-            outputStream.writeInt(-1); // indicate that all keys are done
+            // client reads exception before every key length
+            outputStream.writeShort(0);
+            // indicate that all keys are done
+            outputStream.writeInt(-1);
         } catch(VoldemortException e) {
             writeException(outputStream, e);
         }
@@ -410,7 +425,7 @@ public class AdminServiceRequestHandler {
     private boolean validPartition(byte[] key, int[] partitionList, RoutingStrategy routingStrategy) {
         List<Integer> keyPartitions = routingStrategy.getPartitionList(key);
         for(int p: partitionList) {
-            if(keyPartitions.contains(new Integer(p))) {
+            if(keyPartitions.contains(p)) {
                 return true;
             }
         }
