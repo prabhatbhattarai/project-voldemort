@@ -40,6 +40,7 @@ public class ClusterUtilsTest extends TestCase {
                                                                                                     "",
                                                                                                     8084,
                                                                                                     6669,
+                                                                                                    7779,
                                                                                                     new ArrayList<Integer>()))));
     }
 
@@ -57,6 +58,7 @@ public class ClusterUtilsTest extends TestCase {
                                                                                                     "",
                                                                                                     8084,
                                                                                                     6669,
+                                                                                                    7779,
                                                                                                     new ArrayList<Integer>()))));
     }
 

@@ -71,28 +71,24 @@ public class AdminClient {
     public void updateClusterMetaData(int nodeId, Cluster cluster, String cluster_key)
             throws VoldemortException {
         Node node = cluster.getNodeById(nodeId);
-        if(node.getId() != currentNode.getId()) {
-            SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort());
-            SocketAndStreams sands = pool.checkout(destination);
-            try {
-                DataOutputStream outputStream = sands.getOutputStream();
-                outputStream.writeByte(VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE);
-                outputStream.writeUTF(cluster_key);
-                String clusterString = new ClusterMapper().writeCluster(cluster);
-                outputStream.writeUTF(clusterString);
-                outputStream.flush();
+        SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
+        SocketAndStreams sands = pool.checkout(destination);
+        try {
+            DataOutputStream outputStream = sands.getOutputStream();
+            outputStream.writeByte(VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE);
+            outputStream.writeUTF(cluster_key);
+            String clusterString = new ClusterMapper().writeCluster(cluster);
+            outputStream.writeUTF(clusterString);
+            outputStream.flush();
 
-                DataInputStream inputStream = sands.getInputStream();
-                checkException(inputStream);
-            } catch(IOException e) {
-                close(sands.getSocket());
-                throw new VoldemortException(e);
-            } finally {
-                pool.checkin(destination, sands);
-            }
+            DataInputStream inputStream = sands.getInputStream();
+            checkException(inputStream);
+        } catch(IOException e) {
+            close(sands.getSocket());
+            throw new VoldemortException(e);
+        } finally {
+            pool.checkin(destination, sands);
         }
-
     }
 
     public void updateStoresMetaData(int nodeId, List<StoreDefinition> storesList)
@@ -103,7 +99,7 @@ public class AdminClient {
         SocketAndStreams sands = pool.checkout(destination);
         try {
             DataOutputStream outputStream = sands.getOutputStream();
-            outputStream.writeByte(VoldemortOpCode.UPDATE_CLUSTER_METADATA_OP_CODE);
+            outputStream.writeByte(VoldemortOpCode.UPDATE_STORES_METADATA_OP_CODE);
             String storeDefString = new StoreDefinitionsMapper().writeStoreList(storesList);
             outputStream.writeUTF(storeDefString);
             outputStream.flush();
@@ -123,7 +119,7 @@ public class AdminClient {
      * configuration. <strong> Steps </strong>
      * <ul>
      * <li>Get Current Cluster configuration from {@link MetadataStore}</li>
-     * <li>update current config as {@link MetadataStore#ORIGINAL_CLUSTER_KEY}</li>
+     * <li>update current config as {@link MetadataStore#OLD_CLUSTER_KEY}</li>
      * <li>Set Current Server state as {@link SERVER_STATE#REBALANCING_STATE}</li>
      * <li> create a new cluster config by stealing partitions from all nodes</li>
      * <li>For All nodes do
@@ -136,26 +132,30 @@ public class AdminClient {
      * <li>Set Current Server state as {@link SERVER_STATE#NORMAL_STATE}</li>
      * </ul>
      */
-    public void stealPartitionsFromCluster(String storeName) {
+    public void stealPartitionsFromCluster(int stealerNodeId, String storeName) {
         Cluster currentCluster = metadataStore.getCluster();
-        updateClusterMetaData(currentNode.getId(),
-                              currentCluster,
-                              MetadataStore.ORIGINAL_CLUSTER_KEY);
+        updateClusterMetaData(stealerNodeId, currentCluster, MetadataStore.OLD_CLUSTER_KEY);
 
-        setRebalancingStateAndRestart(currentNode.getId());
+        setRebalancingStateAndRestart(stealerNodeId);
+
+        Node stealerNode = currentCluster.getNodeById(stealerNodeId);
+        if(stealerNode == null) {
+            throw new VoldemortException("stealerNode id:" + stealerNodeId
+                                         + " should be present in initial cluster");
+        }
 
         Cluster updatedCluster = ClusterUtils.updateClusterStealPartitions(currentCluster,
-                                                                           currentNode);
+                                                                           stealerNode);
 
         for(Node node: currentCluster.getNodes()) {
-            if(node.getId() != currentNode.getId()) {
+            if(node.getId() != stealerNodeId) {
 
                 List<Integer> stealList = getStealList(currentCluster,
                                                        updatedCluster,
                                                        node.getId(),
-                                                       currentNode.getId());
+                                                       stealerNodeId);
 
-                Cluster tempCluster = getTempCluster(currentCluster, node, currentNode, stealList);
+                Cluster tempCluster = getTempCluster(currentCluster, node, stealerNode, stealList);
 
                 for(Node tempNode: updatedCluster.getNodes()) {
                     updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
@@ -163,12 +163,12 @@ public class AdminClient {
 
                 SocketDestination getDestination = new SocketDestination(node.getHost(),
                                                                          node.getAdminPort());
-                SocketDestination putDestination = new SocketDestination(currentNode.getHost(),
-                                                                         currentNode.getAdminPort());
+                SocketDestination putDestination = new SocketDestination(stealerNode.getHost(),
+                                                                         stealerNode.getAdminPort());
                 pipeGetAndPutStreams(getDestination, putDestination, storeName, stealList);
             }
         }
-        setNormalStateAndRestart(currentNode.getId());
+        setNormalStateAndRestart(stealerNode.getId());
     }
 
     /**
@@ -180,8 +180,8 @@ public class AdminClient {
      * <li>For All nodes do
      * <ul>
      * <li> identify steal list for this node 'K' </li>
-     * <li>update current config as {@link MetadataStore#ORIGINAL_CLUSTER_KEY}
-     * on remote node 'K'</li>
+     * <li>update current config as {@link MetadataStore#OLD_CLUSTER_KEY} on
+     * remote node 'K'</li>
      * <li> create a temp cluster config </li>
      * <li> Update ALL servers with temp cluster Config </li>
      * <li>Set remote node 'K' state as {@link SERVER_STATE#REBALANCING_STATE}</li>
@@ -191,21 +191,20 @@ public class AdminClient {
      * </li>
      * </ul>
      */
-    public void returnPartitionsToCluster(String storeName) {
+    public void returnPartitionsToCluster(int deleteNodeId, String storeName) {
         Cluster currentCluster = metadataStore.getCluster();
-        Cluster updatedCluster = ClusterUtils.updateClusterDeleteNode(currentCluster,
-                                                                      currentNode.getId());
+        Cluster updatedCluster = ClusterUtils.updateClusterDeleteNode(currentCluster, deleteNodeId);
+        Node deleteNode = updatedCluster.getNodeById(deleteNodeId);
+
         for(Node node: updatedCluster.getNodes()) {
-            if(node.getId() != currentNode.getId()) {
-                updateClusterMetaData(node.getId(),
-                                      currentCluster,
-                                      MetadataStore.ORIGINAL_CLUSTER_KEY);
+            if(node.getId() != deleteNode.getId()) {
+                updateClusterMetaData(node.getId(), currentCluster, MetadataStore.OLD_CLUSTER_KEY);
 
                 List<Integer> stealList = getStealList(currentCluster,
                                                        updatedCluster,
-                                                       currentNode.getId(),
+                                                       deleteNode.getId(),
                                                        node.getId());
-                Cluster tempCluster = getTempCluster(currentCluster, currentNode, node, stealList);
+                Cluster tempCluster = getTempCluster(currentCluster, deleteNode, node, stealList);
 
                 for(Node tempNode: tempCluster.getNodes()) {
                     updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
@@ -213,8 +212,8 @@ public class AdminClient {
 
                 setRebalancingStateAndRestart(node.getId());
 
-                SocketDestination getDestination = new SocketDestination(currentNode.getHost(),
-                                                                         currentNode.getAdminPort());
+                SocketDestination getDestination = new SocketDestination(deleteNode.getHost(),
+                                                                         deleteNode.getAdminPort());
                 SocketDestination putDestination = new SocketDestination(node.getHost(),
                                                                          node.getAdminPort());
                 pipeGetAndPutStreams(getDestination, putDestination, storeName, stealList);

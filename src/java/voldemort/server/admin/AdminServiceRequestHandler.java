@@ -20,6 +20,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
@@ -254,9 +255,13 @@ public class AdminServiceRequestHandler {
             throw new UnableUpdateMetadataException("Inconistent Cluster Metdata found on Server:"
                                                     + nodeId + " for Key:" + cluster_key);
         }
-
+        System.out.println("Cluster metadata  update called " + cluster_key);
         // update version
-        VectorClock updatedVersion = ((VectorClock) clusterInfo.get(0).getVersion());
+        VectorClock updatedVersion = new VectorClock();
+        if(clusterInfo.size() > 0) {
+            updatedVersion = ((VectorClock) clusterInfo.get(0).getVersion());
+        }
+
         updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
 
         try {
@@ -309,41 +314,71 @@ public class AdminServiceRequestHandler {
         }
     }
 
-    private void handleRestartServicesRequest() {
-        for(VoldemortService service: serviceList) {
-            service.stop();
-            service.start();
+    private void handleRestartServicesRequest() throws IOException {
+        List<VoldemortException> exceptions = new ArrayList<VoldemortException>();
+
+        try {
+            for(VoldemortService service: serviceList) {
+                service.stop();
+                service.start();
+            }
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            e.printStackTrace();
+            writeException(outputStream, e);
+            return;
         }
     }
 
-    private void handleRebalancingServerModeRequest() {
-        List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
-                                                                                   "UTF-8"));
+    private void handleRebalancingServerModeRequest() throws IOException {
+        try {
+            List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
+                                                                                       "UTF-8"));
 
-        // update version
-        VectorClock updatedVersion = ((VectorClock) serverState.get(0).getVersion());
-        updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+            // update version
+            VectorClock updatedVersion = new VectorClock();
+            if(serverState.size() > 0) {
+                updatedVersion = ((VectorClock) serverState.get(0).getVersion());
+            }
 
-        metadataStore.put(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY, "UTF-8"),
-                          new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.REBALANCING_STATE.toString(),
-                                                                   "UTF-8"),
-                                                updatedVersion));
+            updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+
+            metadataStore.put(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY, "UTF-8"),
+                              new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.REBALANCING_STATE.toString(),
+                                                                       "UTF-8"),
+                                                    updatedVersion));
+
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            e.printStackTrace();
+            writeException(outputStream, e);
+            return;
+        }
 
     }
 
-    private void handleNormalServerModeRequest() {
-        List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
-                                                                                   "UTF-8"));
+    private void handleNormalServerModeRequest() throws IOException {
+        try {
+            List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
+                                                                                       "UTF-8"));
 
-        // update version
-        VectorClock updatedVersion = ((VectorClock) serverState.get(0).getVersion());
-        updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
+            // update version
+            VectorClock updatedVersion = new VectorClock();
+            if(serverState.size() > 0) {
+                updatedVersion = ((VectorClock) serverState.get(0).getVersion());
+            }
+            updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
 
-        metadataStore.put(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY, "UTF-8"),
-                          new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.NORMAL_STATE.toString(),
-                                                                   "UTF-8"),
-                                                updatedVersion));
-
+            metadataStore.put(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY, "UTF-8"),
+                              new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.NORMAL_STATE.toString(),
+                                                                       "UTF-8"),
+                                                    updatedVersion));
+            outputStream.writeShort(0);
+        } catch(VoldemortException e) {
+            e.printStackTrace();
+            writeException(outputStream, e);
+            return;
+        }
     }
 
     private void handleRedirectGetRequest(StorageEngine engine, byte[] key) throws IOException {

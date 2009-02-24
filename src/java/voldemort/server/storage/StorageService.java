@@ -80,13 +80,15 @@ public class StorageService extends AbstractService {
     private final VoldemortConfig voldemortConfig;
     private final ConcurrentMap<String, Store<byte[], byte[]>> localStoreMap;
     private final Map<String, StorageEngine<byte[], byte[]>> rawEngines;
-    private final ConcurrentMap<StorageEngineType, StorageConfiguration> storageConfigurations;
     private final ConcurrentMap<String, StorageEngine<byte[], byte[]>> storeEngineMap;
     private final StoreDefinitionsMapper storeMapper;
     private final SchedulerService scheduler;
     private final Map<String, RandomAccessFileStore> readOnlyStores;
     private MetadataStore metadataStore;
     private Store<byte[], Slop> slopStore;
+    private final VoldemortConfig config;
+
+    private ConcurrentMap<StorageEngineType, StorageConfiguration> storageConfigurations;
 
     public StorageService(String name,
                           ConcurrentMap<String, Store<byte[], byte[]>> storeMap,
@@ -100,10 +102,10 @@ public class StorageService extends AbstractService {
         this.localStoreMap = storeMap;
         this.rawEngines = new ConcurrentHashMap<String, StorageEngine<byte[], byte[]>>();
         this.scheduler = scheduler;
-        this.storageConfigurations = initStorageConfigurations(config);
         this.metadataStore = metaDataStore;
         this.readOnlyStores = new ConcurrentHashMap<String, RandomAccessFileStore>();
         this.storeEngineMap = storeEngineMap;
+        this.config = config;
     }
 
     private ConcurrentMap<StorageEngineType, StorageConfiguration> initStorageConfigurations(VoldemortConfig config) {
@@ -129,6 +131,8 @@ public class StorageService extends AbstractService {
     @Override
     protected void startInner() {
         this.localStoreMap.clear();
+        this.storageConfigurations = initStorageConfigurations(config);
+
         this.localStoreMap.put(MetadataStore.METADATA_STORE_NAME, metadataStore);
         Store<byte[], byte[]> slopStorage = getStore("slop", voldemortConfig.getSlopStoreType());
         this.slopStore = new SerializingStore<byte[], Slop>(slopStorage,
@@ -210,16 +214,10 @@ public class StorageService extends AbstractService {
     @Override
     protected void stopInner() {
         try {
-            if(metadataStore != null)
-                metadataStore.close();
-        } catch(VoldemortException e) {
-            logger.error("Error while closing metadata store:", e);
-        }
-        try {
             if(slopStore != null)
                 slopStore.close();
         } catch(VoldemortException e) {
-            logger.error("Error while closing metadata store:", e);
+            logger.error("Error while closing slop store:", e);
         }
         VoldemortException exception = null;
         logger.info("Closing stores:");

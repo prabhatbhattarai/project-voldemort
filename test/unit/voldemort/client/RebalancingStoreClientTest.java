@@ -28,6 +28,7 @@ import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
 import voldemort.TestUtils;
+import voldemort.client.admin.AdminClient;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
@@ -41,6 +42,8 @@ import voldemort.server.VoldemortServer;
 import voldemort.store.FailingStore;
 import voldemort.store.InvalidMetadataException;
 import voldemort.store.StoreDefinition;
+import voldemort.store.metadata.MetadataStore;
+import voldemort.store.socket.SocketPool;
 import voldemort.utils.Props;
 
 /**
@@ -93,8 +96,13 @@ public class RebalancingStoreClientTest extends TestCase {
         Cluster updatedCluster = new Cluster("new-cluster",
                                              new ArrayList<Node>(TestUtils.createNodes(partitionMap)));
 
-        // update VoldemortServer cluster.xml
-        server.updateClusterMetadata(updatedCluster);
+        AdminClient client = new AdminClient(server.getIdentityNode(),
+                                             server.getMetaDataStore(),
+                                             new SocketPool(100, 100, 2000));
+
+        client.updateClusterMetaData(server.getIdentityNode().getId(),
+                                     updatedCluster,
+                                     MetadataStore.CLUSTER_KEY);
     }
 
     public void testBootstrapMetadata() {

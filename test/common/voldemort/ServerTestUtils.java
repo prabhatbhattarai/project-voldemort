@@ -63,7 +63,9 @@ public class ServerTestUtils {
         SocketServer socketServer = new SocketServer(getStores(storeName, clusterXml, storesXml),
                                                      port,
                                                      5,
-                                                     10);
+                                                     10,
+                                                     null,
+                                                     1);
         socketServer.start();
         socketServer.awaitStartupCompletion();
         return socketServer;

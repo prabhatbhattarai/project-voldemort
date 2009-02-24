@@ -80,8 +80,9 @@ public class ClusterUtils {
         for(ComparableNode node: queue) {
             nodes.add(new Node(node.getNode().getId(),
                                node.getNode().getHost(),
-                               node.getNode().getSocketPort(),
                                node.getNode().getHttpPort(),
+                               node.getNode().getSocketPort(),
+                               node.getNode().getAdminPort(),
                                node.getPartitions()));
         }
 
@@ -146,6 +147,7 @@ public class ClusterUtils {
             nodes.add(new Node(node.getNode().getId(),
                                node.getNode().getHost(),
                                node.getNode().getSocketPort(),
+                               node.getNode().getAdminPort(),
                                node.getNode().getHttpPort(),
                                node.getPartitions()));
         }

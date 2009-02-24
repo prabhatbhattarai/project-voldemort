@@ -23,6 +23,7 @@ import voldemort.annotations.jmx.JmxManaged;
 import voldemort.server.AbstractService;
 import voldemort.server.VoldemortService;
 import voldemort.store.Store;
+import voldemort.store.metadata.MetadataStore;
 
 /**
  * The VoldemortService that loads up the socket server
@@ -33,19 +34,38 @@ import voldemort.store.Store;
 @JmxManaged(description = "A server that handles remote operations on stores via tcp/ip.")
 public class SocketService extends AbstractService implements VoldemortService {
 
-    private final SocketServer server;
+    private SocketServer server;
+    private final ConcurrentMap<String, ? extends Store<byte[], byte[]>> storeMap;
+    private final int port;
+    private final int coreConnections;
+    private final int maxConnections;
+    private final MetadataStore metadataStore;
+    private final int nodeId;
 
     public SocketService(String name,
                          ConcurrentMap<String, ? extends Store<byte[], byte[]>> storeMap,
                          int port,
                          int coreConnections,
-                         int maxConnections) {
+                         int maxConnections,
+                         MetadataStore metadataStore,
+                         int nodeId) {
         super(name);
-        this.server = new SocketServer(storeMap, port, coreConnections, maxConnections);
+        this.storeMap = storeMap;
+        this.port = port;
+        this.coreConnections = coreConnections;
+        this.maxConnections = maxConnections;
+        this.metadataStore = metadataStore;
+        this.nodeId = nodeId;
     }
 
     @Override
     protected void startInner() {
+        this.server = new SocketServer(storeMap,
+                                       port,
+                                       coreConnections,
+                                       maxConnections,
+                                       metadataStore,
+                                       nodeId);
         this.server.start();
     }
 
