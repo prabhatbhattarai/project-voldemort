@@ -30,6 +30,7 @@ import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.server.VoldemortServer.SERVER_STATE;
+import voldemort.store.Entry;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.StoreDefinition;
 import voldemort.store.metadata.MetadataStore;
@@ -114,6 +115,104 @@ public class AdminClient {
         }
     }
 
+    public ArrayList<Entry<byte[], Versioned<byte[]>>> requestGetPartitionsAsStream(int nodeId,
+                                                                                    String storeName,
+                                                                                    int[] partitionList)
+            throws VoldemortException {
+        ArrayList<Entry<byte[], Versioned<byte[]>>> entryList = new ArrayList<Entry<byte[], Versioned<byte[]>>>();
+        Node node = metadataStore.getCluster().getNodeById(nodeId);
+
+        SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
+        SocketAndStreams sands = pool.checkout(destination);
+        try {
+            // get these partitions from the node for store
+            DataOutputStream getOutputStream = sands.getOutputStream();
+
+            // send request for get Partition List
+            getOutputStream.writeByte(VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE);
+            getOutputStream.writeUTF(storeName);
+            getOutputStream.writeInt(partitionList.length);
+            for(Integer p: partitionList) {
+                getOutputStream.writeInt(p.intValue());
+            }
+            getOutputStream.flush();
+
+            // read values
+            DataInputStream inputStream = sands.getInputStream();
+
+            checkException(inputStream);
+            int keySize = inputStream.readInt();
+            while(keySize != -1) {
+                byte[] key = new byte[keySize];
+                ByteUtils.read(inputStream, key);
+
+                int valueSize = inputStream.readInt();
+                byte[] value = new byte[valueSize];
+                ByteUtils.read(inputStream, value);
+
+                VectorClock clock = new VectorClock(value);
+                Versioned<byte[]> versionedValue = new Versioned<byte[]>(ByteUtils.copy(value,
+                                                                                        clock.sizeInBytes(),
+                                                                                        value.length),
+                                                                         clock);
+                entryList.add(new Entry<byte[], Versioned<byte[]>>(key, versionedValue));
+
+                checkException(inputStream);
+                keySize = inputStream.readInt();
+            }
+
+        } catch(IOException e) {
+            close(sands.getSocket());
+            throw new VoldemortException(e);
+        } finally {
+            pool.checkin(destination, sands);
+        }
+        return entryList;
+    }
+
+    public void requestPutEntriesAsStream(int nodeId,
+                                          String storeName,
+                                          ArrayList<Entry<byte[], Versioned<byte[]>>> entryList)
+            throws VoldemortException, IOException {
+        Node node = metadataStore.getCluster().getNodeById(nodeId);
+
+        SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
+        SocketAndStreams sands = pool.checkout(destination);
+        DataOutputStream outputStream = sands.getOutputStream();
+        DataInputStream inputStream = sands.getInputStream();
+
+        try {
+
+            // send request for put partitions
+            outputStream.writeByte(VoldemortOpCode.PUT_ENTRIES_AS_STREAM_OP_CODE);
+            outputStream.writeUTF(storeName);
+
+            for(Entry<byte[], Versioned<byte[]>> entry: entryList) {
+
+                outputStream.writeInt(entry.getKey().length);
+                outputStream.write(entry.getKey());
+
+                Versioned<byte[]> value = entry.getValue();
+                VectorClock clock = (VectorClock) value.getVersion();
+                outputStream.writeInt(value.getValue().length + clock.sizeInBytes());
+                outputStream.write(clock.toBytes());
+                outputStream.write(value.getValue());
+
+            }
+            outputStream.writeInt(-1);
+            outputStream.flush();
+
+            // read values
+
+        } catch(IOException e) {
+            close(sands.getSocket());
+            throw new VoldemortException(e);
+        } finally {
+            checkException(inputStream);
+            pool.checkin(destination, sands);
+        }
+    }
+
     /**
      * Rebalances the cluster by stealing partitions from current Cluster
      * configuration. <strong> Steps </strong>
@@ -131,8 +230,10 @@ public class AdminClient {
      * </li>
      * <li>Set Current Server state as {@link SERVER_STATE#NORMAL_STATE}</li>
      * </ul>
+     * 
+     * @throws IOException
      */
-    public void stealPartitionsFromCluster(int stealerNodeId, String storeName) {
+    public void stealPartitionsFromCluster(int stealerNodeId, String storeName) throws IOException {
         Cluster currentCluster = metadataStore.getCluster();
         updateClusterMetaData(stealerNodeId, currentCluster, MetadataStore.OLD_CLUSTER_KEY);
 
@@ -161,11 +262,7 @@ public class AdminClient {
                     updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
                 }
 
-                SocketDestination getDestination = new SocketDestination(node.getHost(),
-                                                                         node.getAdminPort());
-                SocketDestination putDestination = new SocketDestination(stealerNode.getHost(),
-                                                                         stealerNode.getAdminPort());
-                pipeGetAndPutStreams(getDestination, putDestination, storeName, stealList);
+                pipeGetAndPutStreams(node.getId(), stealerNodeId, storeName, stealList);
             }
         }
         setNormalStateAndRestart(stealerNode.getId());
@@ -190,8 +287,10 @@ public class AdminClient {
      * </ul>
      * </li>
      * </ul>
+     * 
+     * @throws IOException
      */
-    public void returnPartitionsToCluster(int deleteNodeId, String storeName) {
+    public void returnPartitionsToCluster(int deleteNodeId, String storeName) throws IOException {
         Cluster currentCluster = metadataStore.getCluster();
         Cluster updatedCluster = ClusterUtils.updateClusterDeleteNode(currentCluster, deleteNodeId);
         Node deleteNode = updatedCluster.getNodeById(deleteNodeId);
@@ -212,11 +311,7 @@ public class AdminClient {
 
                 setRebalancingStateAndRestart(node.getId());
 
-                SocketDestination getDestination = new SocketDestination(deleteNode.getHost(),
-                                                                         deleteNode.getAdminPort());
-                SocketDestination putDestination = new SocketDestination(node.getHost(),
-                                                                         node.getAdminPort());
-                pipeGetAndPutStreams(getDestination, putDestination, storeName, stealList);
+                pipeGetAndPutStreams(deleteNode.getId(), deleteNode.getId(), storeName, stealList);
 
                 setNormalStateAndRestart(node.getId());
             }
@@ -358,20 +453,30 @@ public class AdminClient {
         return new Cluster(currentCluster.getName(), nodes);
     }
 
-    private void pipeGetAndPutStreams(SocketDestination getDestination,
-                                      SocketDestination putDestination,
-                                      String storeName,
-                                      List<Integer> stealList) {
+    public void pipeGetAndPutStreams(int getNodeId,
+                                     int putNodeId,
+                                     String storeName,
+                                     List<Integer> stealList) throws IOException {
+        Cluster currentCluster = metadataStore.getCluster();
+
+        Node getNode = currentCluster.getNodeById(getNodeId);
+        Node putNode = currentCluster.getNodeById(putNodeId);
+
+        SocketDestination getDestination = new SocketDestination(getNode.getHost(),
+                                                                 getNode.getAdminPort());
+        SocketDestination putDestination = new SocketDestination(putNode.getHost(),
+                                                                 putNode.getAdminPort());
+
         SocketAndStreams sands = pool.checkout(getDestination);
         SocketAndStreams sands2 = pool.checkout(putDestination);
 
+        DataOutputStream putOutputStream = sands2.getOutputStream();
+        DataInputStream putInputStream = sands2.getInputStream();
         try {
             // get these partitions from the node for store
-            DataOutputStream getOutputStream = sands.getOutputStream();
-            DataInputStream getInputStream = sands.getInputStream();
 
-            DataOutputStream putOutputStream = sands2.getOutputStream();
-            DataInputStream putInputStream = sands2.getInputStream();
+            // send request for get Partition List
+            DataOutputStream getOutputStream = sands.getOutputStream();
 
             // send request for get Partition List
             getOutputStream.writeByte(VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE);
@@ -383,10 +488,13 @@ public class AdminClient {
             getOutputStream.flush();
 
             // send request for putPartition
-            putOutputStream.writeByte(VoldemortOpCode.PUT_PARTITION_AS_STREAM_OP_CODE);
+            putOutputStream.writeByte(VoldemortOpCode.PUT_ENTRIES_AS_STREAM_OP_CODE);
             putOutputStream.writeUTF(storeName);
+            putOutputStream.flush();
 
-            // pipe
+            DataInputStream getInputStream = sands.getInputStream();
+            // pipe Get Data to Put Stream
+            checkException(getInputStream);
             int keySize = getInputStream.readInt();
             while(keySize != -1) {
                 putOutputStream.writeInt(keySize);
@@ -400,17 +508,18 @@ public class AdminClient {
                 ByteUtils.read(getInputStream, value);
                 putOutputStream.write(value);
 
+                checkException(getInputStream);
                 keySize = getInputStream.readInt();
             }
             putOutputStream.writeInt(-1); // end this stream here
+            putOutputStream.flush();
 
-            checkException(getInputStream);
-            checkException(putInputStream);
         } catch(IOException e) {
             close(sands.getSocket());
             close(sands2.getSocket());
             throw new VoldemortException(e);
         } finally {
+            checkException(putInputStream);
             pool.checkin(getDestination, sands);
             pool.checkin(putDestination, sands2);
         }
