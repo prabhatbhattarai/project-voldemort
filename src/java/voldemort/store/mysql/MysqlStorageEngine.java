@@ -21,11 +21,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 import javax.sql.DataSource;
 
 import org.apache.log4j.Logger;
 
+import voldemort.VoldemortException;
 import voldemort.store.Entry;
 import voldemort.store.PersistenceFailureException;
 import voldemort.store.StorageEngine;
@@ -174,8 +176,9 @@ public class MysqlStorageEngine implements StorageEngine<ByteArray, byte[]> {
         }
     }
 
-    public List<Versioned<byte[]>> get(ByteArray key) throws PersistenceFailureException {
-        StoreUtils.assertValidKey(key);
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
         Connection conn = null;
         PreparedStatement stmt = null;
         ResultSet rs = null;
@@ -183,16 +186,19 @@ public class MysqlStorageEngine implements StorageEngine<ByteArray, byte[]> {
         try {
             conn = datasource.getConnection();
             stmt = conn.prepareStatement(select);
-            stmt.setBytes(1, key.get());
-            rs = stmt.executeQuery();
-            List<Versioned<byte[]>> found = Lists.newArrayList();
-            while(rs.next()) {
-                byte[] version = rs.getBytes("version_");
-                byte[] value = rs.getBytes("value_");
-                found.add(new Versioned<byte[]>(value, new VectorClock(version)));
+            Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
+            for(ByteArray key: keys) {
+                stmt.setBytes(1, key.get());
+                rs = stmt.executeQuery();
+                List<Versioned<byte[]>> found = Lists.newArrayList();
+                while(rs.next()) {
+                    byte[] version = rs.getBytes("version_");
+                    byte[] value = rs.getBytes("value_");
+                    found.add(new Versioned<byte[]>(value, new VectorClock(version)));
+                }
+                result.put(key, found);
             }
-
-            return found;
+            return result;
         } catch(SQLException e) {
             throw new PersistenceFailureException("Fix me!", e);
         } finally {
@@ -200,6 +206,11 @@ public class MysqlStorageEngine implements StorageEngine<ByteArray, byte[]> {
             tryClose(stmt);
             tryClose(conn);
         }
+    }
+
+    public List<Versioned<byte[]>> get(ByteArray key) throws PersistenceFailureException {
+        StoreUtils.assertValidKey(key);
+        return StoreUtils.get(this, key);
     }
 
     public String getName() {
@@ -348,5 +359,4 @@ public class MysqlStorageEngine implements StorageEngine<ByteArray, byte[]> {
         }
 
     }
-
 }

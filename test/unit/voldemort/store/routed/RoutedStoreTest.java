@@ -356,4 +356,10 @@ public class RoutedStoreTest extends ByteArrayStoreTest {
                 found++;
         assertEquals("Number of operational nodes not what was expected.", expected, found);
     }
+
+    @Override
+    protected void assertGetAllValues(byte[] expectedValue, List<Versioned<byte[]>> versioneds) {
+        assertEquals(cluster.getNodes().size(), versioneds.size());
+        valuesEqual(expectedValue, versioneds.get(0).getValue());
+    }
 }

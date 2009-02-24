@@ -243,6 +243,13 @@ public class RoutedStore implements Store<ByteArray, byte[]> {
             return deletedSomething.get();
     }
 
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        // TODO Add optimised implementation.
+        return StoreUtils.getAll(this, keys);
+    }
+
     /*
      * 1. Attempt preferredReads, and then wait for these to complete 2. If we
      * got all the reads we wanted, then we are done. 3. If not then continue
@@ -543,5 +550,4 @@ public class RoutedStore implements Store<ByteArray, byte[]> {
     Map<Integer, Store<ByteArray, byte[]>> getInnerStores() {
         return this.innerStores;
     }
-
 }

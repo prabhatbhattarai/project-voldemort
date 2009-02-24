@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 
@@ -85,6 +86,14 @@ public class SocketStore implements Store<ByteArray, byte[]> {
         } finally {
             pool.checkin(destination, sands);
         }
+    }
+
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        // TODO We can optimise this, but wait for protobuf protocol before
+        // considering
+        return StoreUtils.getAll(this, keys);
     }
 
     public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
@@ -162,5 +171,4 @@ public class SocketStore implements Store<ByteArray, byte[]> {
             logger.warn("Failed to close socket");
         }
     }
-
 }

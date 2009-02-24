@@ -25,7 +25,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -41,14 +43,17 @@ import voldemort.annotations.jmx.JmxOperation;
 import voldemort.store.Entry;
 import voldemort.store.PersistenceFailureException;
 import voldemort.store.StorageEngine;
+import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
+import voldemort.utils.Pair;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 
 /**
  * A read-only store that fronts a big file
@@ -59,6 +64,13 @@ import com.google.common.base.Objects;
 public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
 
     private static Logger logger = Logger.getLogger(RandomAccessFileStore.class);
+
+    private static final Comparator<Pair<ByteArray, Long>> KEYS_AND_VALUES_COMPARATOR = new Comparator<Pair<ByteArray, Long>>() {
+
+        public int compare(Pair<ByteArray, Long> o1, Pair<ByteArray, Long> o2) {
+            return o1.getSecond().compareTo(o2.getSecond());
+        }
+    };
 
     public static int KEY_HASH_SIZE = 16;
     public static int POSITION_SIZE = 8;
@@ -296,22 +308,39 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
      * The get method provided by this store
      */
     public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
+        StoreUtils.assertValidKey(key);
+        return StoreUtils.get(this, key);
+    }
+
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
         RandomAccessFile index = null;
         RandomAccessFile data = null;
         try {
             fileModificationLock.readLock().lock();
             index = getFile(indexFiles);
-            long valueLocation = getValueLocation(index, key.get());
-            if(valueLocation < 0) {
-                return Collections.emptyList();
-            } else {
+            List<Pair<ByteArray, Long>> keysAndValueLocations = Lists.newArrayList();
+            for(ByteArray key: keys) {
+                long valueLocation = getValueLocation(index, key.get());
+                if(valueLocation < 0)
+                    result.put(key, Collections.<Versioned<byte[]>> emptyList());
+                else
+                    keysAndValueLocations.add(Pair.create(key, valueLocation));
+            }
+            Collections.sort(keysAndValueLocations, KEYS_AND_VALUES_COMPARATOR);
+
+            for(Pair<ByteArray, Long> keyAndValueLocation: keysAndValueLocations) {
                 data = getFile(dataFiles);
-                data.seek(valueLocation);
+                data.seek(keyAndValueLocation.getSecond());
                 int size = data.readInt();
                 byte[] value = new byte[size];
                 data.readFully(value);
-                return Collections.singletonList(new Versioned<byte[]>(value, new VectorClock()));
+                result.put(keyAndValueLocation.getFirst(),
+                           Collections.singletonList(new Versioned<byte[]>(value, new VectorClock())));
             }
+            return result;
         } catch(InterruptedException e) {
             throw new VoldemortException("Thread was interrupted.", e);
         } catch(IOException e) {
@@ -492,5 +521,4 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
     public String getIndexFileName() {
         return this.indexFile.getAbsolutePath();
     }
-
 }

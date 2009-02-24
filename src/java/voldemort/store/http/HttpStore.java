@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
@@ -126,6 +127,13 @@ public class HttpStore implements Store<ByteArray, byte[]> {
             if(method != null)
                 method.releaseConnection();
         }
+    }
+
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        // TODO Consider retrieving the keys concurrently.
+        return StoreUtils.getAll(this, keys);
     }
 
     public void put(ByteArray key, Versioned<byte[]> versioned) throws VoldemortException {
