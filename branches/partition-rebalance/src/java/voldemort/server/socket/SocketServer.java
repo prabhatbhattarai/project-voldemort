@@ -41,6 +41,7 @@ import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
 import voldemort.store.Store;
+import voldemort.store.metadata.MetadataStore;
 
 /**
  * A simple socket-based server for serving voldemort requests
@@ -59,6 +60,8 @@ public class SocketServer extends Thread {
     private final ThreadGroup threadGroup;
     private final CountDownLatch isStarted = new CountDownLatch(1);
     private ServerSocket serverSocket = null;
+    private final MetadataStore metadataStore;
+    private final int nodeId;
 
     private final ThreadFactory threadFactory = new ThreadFactory() {
 
@@ -90,7 +93,9 @@ public class SocketServer extends Thread {
     public SocketServer(ConcurrentMap<String, ? extends Store<byte[], byte[]>> storeMap,
                         int port,
                         int defaultThreads,
-                        int maxThreads) {
+                        int maxThreads,
+                        MetadataStore metadataStore,
+                        int nodeId) {
         this.port = port;
         this.threadGroup = new ThreadGroup("VoldemortRawSocketHandler");
         this.storeMap = storeMap;
@@ -101,6 +106,8 @@ public class SocketServer extends Thread {
                                                  new SynchronousQueue<Runnable>(),
                                                  threadFactory,
                                                  rejectedExecutionHandler);
+        this.metadataStore = metadataStore;
+        this.nodeId = nodeId;
     }
 
     @Override
@@ -191,7 +198,9 @@ public class SocketServer extends Thread {
                                                                                   new DataInputStream(new BufferedInputStream(socket.getInputStream(),
                                                                                                                               1000)),
                                                                                   new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),
-                                                                                                                                1000)));
+                                                                                                                                1000)),
+                                                                                  metadataStore,
+                                                                                  nodeId);
                 while(!Thread.currentThread().isInterrupted()) {
                     handler.handleRequest();
                 }

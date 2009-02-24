@@ -41,7 +41,7 @@ public class SocketPoolTest extends TestCase {
     public void setUp() {
         this.pool = new SocketPool(maxConnections, maxConnections, 2000);
         this.dest = new SocketDestination("localhost", port);
-        this.server = new SocketServer(new ConcurrentHashMap(), port, 10, 10);
+        this.server = new SocketServer(new ConcurrentHashMap(), port, 10, 10, null, 1);
         this.server.start();
         this.server.awaitStartupCompletion();
     }

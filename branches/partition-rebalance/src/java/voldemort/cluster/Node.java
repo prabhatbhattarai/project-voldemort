@@ -45,17 +45,13 @@ public class Node implements Serializable {
     private final int adminSocketPort;
     private NodeStatus status;
 
-    public Node(int id, String host, int httpPort, int socketPort, List<Integer> partitions) {
-        this(id, host, httpPort, socketPort, partitions, new NodeStatus());
-    }
-
     public Node(int id,
                 String host,
                 int httpPort,
                 int socketPort,
-                List<Integer> partitions,
-                NodeStatus status) {
-        this(id, host, httpPort, socketPort, -1, partitions, status);
+                int adminPort,
+                List<Integer> partitions) {
+        this(id, host, httpPort, socketPort, adminPort, partitions, new NodeStatus());
     }
 
     public Node(int id,

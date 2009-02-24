@@ -43,7 +43,7 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
     public static final String CLUSTER_KEY = "cluster.xml";
     public static final String STORES_KEY = "stores.xml";
     public static final String SERVER_STATE_KEY = "server.state";
-    public static final String ORIGINAL_CLUSTER_KEY = "rebalanced.cluster.xml";
+    public static final String OLD_CLUSTER_KEY = "old.cluster.xml";
 
     private final Store<String, String> innerStore;
     private final ClusterMapper clusterMapper;
@@ -87,13 +87,17 @@ public class MetadataStore implements StorageEngine<byte[], byte[]> {
                     Versioned<String> versioned = current.get(0);
                     if(versioned.getVersion().compare(value.getVersion()) != Occured.BEFORE)
                         throw new ObsoleteVersionException("Attempt to put out of date store metadata!");
-                    handleStoreChange(storeMapper.readStoreList(new StringReader(valueStr)));
+                    // handleStoreChange(storeMapper.readStoreList(new
+                    // StringReader(valueStr)));
                     innerStore.put(keyStr, newVersioned);
                 } else {
                     throw new VoldemortException("Inconsistent metadata: " + current);
                 }
             } else if(CLUSTER_KEY.equals(keyStr)) {
                 // TODO: handle cluster metadata updates
+                innerStore.put(keyStr, newVersioned);
+            } else {
+                // default put case
                 innerStore.put(keyStr, newVersioned);
             }
         }

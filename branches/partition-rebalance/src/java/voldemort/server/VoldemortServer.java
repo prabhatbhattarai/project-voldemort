@@ -133,7 +133,9 @@ public class VoldemortServer extends AbstractService {
                                            storeMap,
                                            identityNode.getSocketPort(),
                                            voldemortConfig.getCoreThreads(),
-                                           voldemortConfig.getMaxThreads()));
+                                           voldemortConfig.getMaxThreads(),
+                                           metaStore,
+                                           identityNode.getId()));
         if(voldemortConfig.isJmxEnabled())
             services.add(new JmxService("jmx-service", this, cluster, storeMap, services));
 
@@ -146,6 +148,9 @@ public class VoldemortServer extends AbstractService {
         for(VoldemortService service: services)
             service.start();
         long end = System.currentTimeMillis();
+
+        logger.info("Starting Admin Service");
+        adminService.start();
 
         // add a shutdown hook to stop the server
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -167,6 +172,10 @@ public class VoldemortServer extends AbstractService {
      */
     protected void stopInner() throws VoldemortException {
         List<VoldemortException> exceptions = new ArrayList<VoldemortException>();
+
+        // stop adminService
+        adminService.stop();
+
         logger.info("Stoping services:");
         for(VoldemortService service: services) {
             try {
@@ -177,7 +186,16 @@ public class VoldemortServer extends AbstractService {
                 logger.error(e);
             }
         }
-        logger.info("All services stoped.");
+        logger.info("All services stopped.");
+
+        logger.info("Closing Metadata Store");
+        try {
+            if(metadataStore != null)
+                metadataStore.close();
+        } catch(VoldemortException e) {
+            logger.error("Error while closing metadata store:", e);
+        }
+        logger.info("MetadataStore closed.");
 
         if(exceptions.size() > 0)
             throw exceptions.get(0);

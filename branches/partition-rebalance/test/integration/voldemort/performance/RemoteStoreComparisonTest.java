@@ -49,7 +49,7 @@ public class RemoteStoreComparisonTest {
         int numRequests = Integer.parseInt(args[0]);
         int numThreads = Integer.parseInt(args[1]);
 
-        /*** In memory test ***/
+        /** * In memory test ** */
         final Store<byte[], byte[]> memStore = new InMemoryStorageEngine<byte[], byte[]>("test");
         PerformanceTest memWriteTest = new PerformanceTest() {
 
@@ -81,13 +81,13 @@ public class RemoteStoreComparisonTest {
         System.out.println();
         System.out.println();
 
-        /*** Do Socket tests ***/
+        /** * Do Socket tests ** */
         String storeName = "test";
         ConcurrentMap<String, Store<byte[], byte[]>> stores = new ConcurrentHashMap<String, Store<byte[], byte[]>>(1);
         stores.put(storeName, new InMemoryStorageEngine<byte[], byte[]>(storeName));
         SocketPool socketPool = new SocketPool(10, 10, 1000);
         final SocketStore socketStore = new SocketStore(storeName, "localhost", 6666, socketPool);
-        SocketServer socketServer = new SocketServer(stores, 6666, 50, 50);
+        SocketServer socketServer = new SocketServer(stores, 6666, 50, 50, null, 1);
         socketServer.start();
         socketServer.awaitStartupCompletion();
 
@@ -125,7 +125,7 @@ public class RemoteStoreComparisonTest {
         socketPool.close();
         socketServer.shutdown();
 
-        /*** Do HTTP tests ***/
+        /** * Do HTTP tests ** */
         stores.put(storeName, new InMemoryStorageEngine<byte[], byte[]>(storeName));
         HttpService httpService = new HttpService(storeName, null, numThreads, 8080);
         httpService.start();

@@ -75,6 +75,7 @@ public class JsonStoreBuilderTest extends TestCase {
                                                                                  "localhost",
                                                                                  8080,
                                                                                  6666,
+                                                                                 7777,
                                                                                  Arrays.asList(0,
                                                                                                1,
                                                                                                2,

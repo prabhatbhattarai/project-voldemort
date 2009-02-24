@@ -151,7 +151,7 @@ public class AdminServer extends Thread {
     }
 
     public void shutdown() {
-        logger.info("Shutting down voldemort socket server on port " + port + ".");
+        logger.info("Shutting down voldemort Admin server on port " + port + ".");
         threadGroup.interrupt();
         interrupt();
         threadPool.shutdownNow();

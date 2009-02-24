@@ -31,6 +31,7 @@ import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.server.VoldemortServer;
+import voldemort.server.VoldemortServer.SERVER_STATE;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
@@ -52,9 +53,9 @@ public class StreamStoreRequestHandler {
     private final DataInputStream inputStream;
     private final DataOutputStream outputStream;
     private final ConcurrentMap<String, ? extends Store<byte[], byte[]>> storeMap;
-    private final VoldemortServer.SERVER_STATE state;
+    private VoldemortServer.SERVER_STATE state = SERVER_STATE.NORMAL_STATE;
     private final MetadataStore metadataStore;
-    private final Cluster originalCluster;
+    private final Cluster oldCluster;
     private final Cluster updatedCluster;
     private final List<StoreDefinition> storeDefs;
     private final AdminClient adminClient;
@@ -65,13 +66,11 @@ public class StreamStoreRequestHandler {
     public StreamStoreRequestHandler(ConcurrentMap<String, ? extends Store<byte[], byte[]>> storeMap,
                                      DataInputStream inputStream,
                                      DataOutputStream outputStream,
-                                     VoldemortServer.SERVER_STATE state,
                                      MetadataStore metadataStore,
                                      int nodeId) {
         this.inputStream = inputStream;
         this.outputStream = outputStream;
         this.storeMap = storeMap;
-        this.state = state;
         this.metadataStore = metadataStore;
         this.nodeId = nodeId;
         updatedCluster = metadataStore.getCluster();
@@ -81,18 +80,26 @@ public class StreamStoreRequestHandler {
                                       new SocketPool(10,
                                                      10 * updatedCluster.getNumberOfNodes(),
                                                      2000));
+        if(null != metadataStore) {
+            List<Versioned<byte[]>> values = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
+                                                                                  "UTF-8"));
+            if(values.size() > 0) {
+                String stateString = new String(values.get(0).getValue());
+                this.state = SERVER_STATE.valueOf(stateString);
+            }
+        }
 
-        if(VoldemortServer.SERVER_STATE.REBALANCING_STATE.equals(state)) {
-            List<Versioned<byte[]>> clusterInfo = metadataStore.get(ByteUtils.getBytes(MetadataStore.ORIGINAL_CLUSTER_KEY,
-                                                                                       "UTF-8"));
-            if(clusterInfo.size() != 1) {
+        if(SERVER_STATE.REBALANCING_STATE.equals(state)) {
+            List<Versioned<byte[]>> oldClusterInfo = metadataStore.get(ByteUtils.getBytes(MetadataStore.OLD_CLUSTER_KEY,
+                                                                                          "UTF-8"));
+            if(oldClusterInfo.size() != 1) {
                 throw new VoldemortException("handleGetRebalance : Failed to read REBALANCED_CLUSTER_KEY correctly");
             }
-            originalCluster = new ClusterMapper().readCluster(new StringReader(new String(clusterInfo.get(0)
-                                                                                                     .getValue())));
+            oldCluster = new ClusterMapper().readCluster(new StringReader(new String(oldClusterInfo.get(0)
+                                                                                                        .getValue())));
         } else {
             // FOR NORMAL state no need for these
-            originalCluster = null;
+            oldCluster = null;
         }
     }
 
@@ -185,7 +192,7 @@ public class StreamStoreRequestHandler {
     private List<Versioned<byte[]>> doGetRebalancingState(Store<byte[], byte[]> store, byte[] key)
             throws IOException {
         int repFactor = getReplicationFactor(store.getName());
-        List<Node> originalNodeList = new ConsistentRoutingStrategy(originalCluster.getNodes(),
+        List<Node> originalNodeList = new ConsistentRoutingStrategy(oldCluster.getNodes(),
                                                                     repFactor).routeRequest(key);
         List<Node> updatedNodeList = new ConsistentRoutingStrategy(updatedCluster.getNodes(),
                                                                    repFactor).routeRequest(key);
