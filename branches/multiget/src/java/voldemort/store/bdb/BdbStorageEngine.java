@@ -20,10 +20,12 @@ import static voldemort.utils.Utils.assertNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
 
+import voldemort.VoldemortException;
 import voldemort.serialization.IdentitySerializer;
 import voldemort.serialization.VersionedSerializer;
 import voldemort.store.Entry;
@@ -146,21 +148,49 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[]> {
 
         Cursor cursor = null;
         try {
-            DatabaseEntry keyEntry = new DatabaseEntry(key.get());
-            DatabaseEntry valueEntry = new DatabaseEntry();
-            List<Versioned<byte[]>> results = new ArrayList<Versioned<byte[]>>();
             cursor = bdbDatabase.openCursor(null, null);
-            for(OperationStatus status = cursor.getSearchKey(keyEntry, valueEntry, lockMode); status == OperationStatus.SUCCESS; status = cursor.getNextDup(keyEntry,
-                                                                                                                                                            valueEntry,
-                                                                                                                                                            lockMode)) {
-                results.add(serializer.toObject(valueEntry.getData()));
-            }
-            return results;
+            return get(cursor, key, lockMode);
         } catch(DatabaseException e) {
             throw new PersistenceFailureException(e);
         } finally {
             attemptClose(cursor);
         }
+    }
+
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
+        Cursor cursor = null;
+        try {
+            cursor = bdbDatabase.openCursor(null, null);
+            for(ByteArray key: keys) {
+                List<Versioned<byte[]>> values = get(cursor, key, LockMode.READ_UNCOMMITTED);
+                if(!values.isEmpty())
+                    result.put(key, values);
+            }
+        } catch(DatabaseException e) {
+            throw new PersistenceFailureException(e);
+        } finally {
+            attemptClose(cursor);
+        }
+        return result;
+    }
+
+    private List<Versioned<byte[]>> get(Cursor cursor, ByteArray key, LockMode lockMode)
+            throws DatabaseException {
+        StoreUtils.assertValidKey(key);
+
+        DatabaseEntry keyEntry = new DatabaseEntry(key.get());
+        DatabaseEntry valueEntry = new DatabaseEntry();
+        List<Versioned<byte[]>> results = new ArrayList<Versioned<byte[]>>();
+
+        for(OperationStatus status = cursor.getSearchKey(keyEntry, valueEntry, lockMode); status == OperationStatus.SUCCESS; status = cursor.getNextDup(keyEntry,
+                                                                                                                                                        valueEntry,
+                                                                                                                                                        LockMode.RMW)) {
+            results.add(serializer.toObject(valueEntry.getData()));
+        }
+        return results;
     }
 
     public void put(ByteArray key, Versioned<byte[]> value) throws PersistenceFailureException {
@@ -363,5 +393,4 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[]> {
         }
 
     }
-
 }

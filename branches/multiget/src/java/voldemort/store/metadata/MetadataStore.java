@@ -32,6 +32,7 @@ import voldemort.store.Entry;
 import voldemort.store.StorageEngine;
 import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
+import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
@@ -102,6 +103,12 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
         } catch(IOException e) {
             throw new VoldemortException("Error reading metadata value '" + keyStr + "': ", e);
         }
+    }
+
+    public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
+            throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        return StoreUtils.getAll(this, keys);
     }
 
     public Cluster getCluster() {

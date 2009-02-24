@@ -18,14 +18,19 @@ package voldemort.store.serialized;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import voldemort.VoldemortException;
 import voldemort.serialization.Serializer;
 import voldemort.store.Store;
+import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
 import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 /**
  * A store that transforms requests to a Store<ByteArray,byte[]> to a Store<K,V>
@@ -57,6 +62,13 @@ public class SerializingStore<K, V> implements Store<K, V> {
         return new ByteArray(keySerializer.toBytes(key));
     }
 
+    private Map<ByteArray, K> keysToBytes(Iterable<K> keys) {
+        Map<ByteArray, K> result = StoreUtils.newEmptyHashMap(keys);
+        for(K key: keys)
+            result.put(keyToBytes(key), key);
+        return result;
+    }
+
     public List<Versioned<V>> get(K key) throws VoldemortException {
         List<Versioned<byte[]>> found = store.get(keyToBytes(key));
         List<Versioned<V>> results = new ArrayList<Versioned<V>>(found.size());
@@ -64,6 +76,23 @@ public class SerializingStore<K, V> implements Store<K, V> {
             results.add(new Versioned<V>(valueSerializer.toObject(versioned.getValue()),
                                          versioned.getVersion()));
         return results;
+    }
+
+    public Map<K, List<Versioned<V>>> getAll(Iterable<K> keys) throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        Map<ByteArray, K> byteKeyToKey = keysToBytes(keys);
+        Map<ByteArray, List<Versioned<byte[]>>> storeResult = store.getAll(byteKeyToKey.keySet());
+        Map<K, List<Versioned<V>>> result = Maps.newHashMapWithExpectedSize(storeResult.size());
+        for(Map.Entry<ByteArray, List<Versioned<byte[]>>> mapEntry: storeResult.entrySet()) {
+            List<Versioned<V>> values = Lists.newArrayListWithExpectedSize(mapEntry.getValue()
+                                                                                   .size());
+            for(Versioned<byte[]> versioned: mapEntry.getValue())
+                values.add(new Versioned<V>(valueSerializer.toObject(versioned.getValue()),
+                                            versioned.getVersion()));
+
+            result.put(byteKeyToKey.get(mapEntry.getKey()), values);
+        }
+        return result;
     }
 
     public String getName() {

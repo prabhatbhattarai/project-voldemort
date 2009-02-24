@@ -103,6 +103,11 @@ public class InMemoryStorageEngine<K, V> implements StorageEngine<K, V> {
         }
     }
 
+    public Map<K, List<Versioned<V>>> getAll(Iterable<K> keys) throws VoldemortException {
+        StoreUtils.assertValidKeys(keys);
+        return StoreUtils.getAll(this, keys);
+    }
+
     public void put(K key, Versioned<V> value) throws VoldemortException {
         StoreUtils.assertValidKey(key);
 
@@ -230,5 +235,4 @@ public class InMemoryStorageEngine<K, V> implements StorageEngine<K, V> {
         }
 
     }
-
 }
