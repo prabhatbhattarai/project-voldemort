@@ -96,7 +96,7 @@ public class ClusterUtils {
     public static String GetClusterAsString(Cluster cluster) {
         StringBuilder builder = new StringBuilder("[");
         for(Node node: cluster.getNodes()) {
-            builder.append(node + "(");
+            builder.append(node + "( ");
             for(Integer p: node.getPartitionIds()) {
                 builder.append(p);
                 builder.append(",");

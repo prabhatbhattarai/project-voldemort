@@ -88,7 +88,7 @@ public class RebalancingTest extends TestCase {
         return config;
     }
 
-    public void estStealPartitions() throws IOException {
+    public void testStealPartitions() throws IOException {
         String storeName = "test-replication-1";
 
         // enter data into server 1 & 2
@@ -177,21 +177,6 @@ public class RebalancingTest extends TestCase {
         }
         assertEquals("Atleast one key value should be returned", true, matched > 0);
         assertEquals("Aprox 1/2th of keys should be there", true, matched > 400 && matched < 600);
-
-        // Assert server 2 have 0 partitions
-        Store<byte[], byte[]> store2 = server2.getStoreMap().get(storeName);
-        matched = 0;
-        for(int i = 0; i <= 1000; i++) {
-            byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
-            byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
-
-            if(store2.get(key).size() > 0) {
-                matched++;
-            }
-        }
-        assertEquals("Server2 should not have any key left.", 0, matched);
-
-        server3.stop();
     }
 
     private void loadEntry(byte[] key, byte[] value, String storeName) {
@@ -205,7 +190,7 @@ public class RebalancingTest extends TestCase {
                 store1.put(key, new Versioned<byte[]>(value));
                 break;
             case 1:
-                Store<byte[], byte[]> store2 = server1.getStoreMap().get(storeName);
+                Store<byte[], byte[]> store2 = server2.getStoreMap().get(storeName);
                 store2.put(key, new Versioned<byte[]>(value));
                 break;
         }

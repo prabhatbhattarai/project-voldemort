@@ -309,9 +309,12 @@ public class AdminClient {
                                                                             deleteNode);
         Node donorNode = updatedCluster.getNodeById(donorNodeId);
 
+        logger.info("originalCluster:" + ClusterUtils.GetClusterAsString(currentCluster));
+        logger.info("updatedCluster:" + ClusterUtils.GetClusterAsString(updatedCluster));
+
         for(Node node: updatedCluster.getNodes()) {
             if(node.getId() != donorNode.getId()) {
-                logger.info("Node(" + currentNode.getId() + ") Donating to node:" + node.getId());
+                logger.info("Node(" + donorNodeId + ") Donating to node:" + node.getId());
 
                 updateClusterMetaData(node.getId(), currentCluster, MetadataStore.OLD_CLUSTER_KEY);
 
@@ -323,6 +326,7 @@ public class AdminClient {
                     continue;
                 }
                 Cluster tempCluster = getTempCluster(currentCluster, donorNode, node, stealList);
+                logger.info("tempCluster:" + ClusterUtils.GetClusterAsString(tempCluster));
 
                 for(Node tempNode: tempCluster.getNodes()) {
                     updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
@@ -330,7 +334,7 @@ public class AdminClient {
 
                 setRebalancingStateAndRestart(node.getId());
 
-                pipeGetAndPutStreams(donorNode.getId(), donorNode.getId(), storeName, stealList);
+                pipeGetAndPutStreams(donorNode.getId(), node.getId(), storeName, stealList);
 
                 setNormalStateAndRestart(node.getId());
             }
