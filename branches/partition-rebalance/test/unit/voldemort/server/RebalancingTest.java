@@ -88,10 +88,10 @@ public class RebalancingTest extends TestCase {
         return config;
     }
 
-    public void testStealPartitions() throws IOException {
+    public void estStealPartitions() throws IOException {
         String storeName = "test-replication-1";
 
-        // enter data into server 1
+        // enter data into server 1 & 2
         for(int i = 1; i <= 1000; i++) {
             byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
             byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
@@ -129,8 +129,69 @@ public class RebalancingTest extends TestCase {
         }
 
         assertEquals("Atleast one key value should be returned", true, matched > 0);
+        assertEquals("Atleast 1/5th of keys should be there", true, matched > 200);
         assertEquals("Atmost 1/3 total keys should be returned", true, matched < 350);
 
+        server3.stop();
+    }
+
+    public void testDonatePartitions() throws IOException {
+        String storeName = "test-replication-1";
+
+        // Add a new node to cluster config with blank partition List
+        List<Node> nodes = new ArrayList<Node>(server1.getCluster().getNodes());
+        nodes.add(new Node(2, "localhost", 8083, 6669, 7779, new ArrayList<Integer>()));
+        Cluster updatedCluster = new Cluster("updated-cluster", nodes);
+
+        // enter data into server 1 & 2
+        for(int i = 1; i <= 1000; i++) {
+            byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
+            byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
+
+            loadEntry(key, value, storeName);
+        }
+
+        VoldemortConfig config = createServerConfig(2);
+        VoldemortServer server3 = new VoldemortServer(config, updatedCluster);
+        server3.start();
+
+        AdminClient client = new AdminClient(server1.getIdentityNode(),
+                                             server1.getMetaDataStore(),
+                                             new SocketPool(100, 100, 2000));
+        // persist updated Cluster to metadata for node 1
+        client.updateClusterMetaData(0, updatedCluster, MetadataStore.CLUSTER_KEY);
+
+        // do donatePartitions
+        client.donatePartitionsToCluster(1, storeName, 2, false);
+
+        // Assert server 3 got 2 partitions
+        Store<byte[], byte[]> store3 = server3.getStoreMap().get(storeName);
+        int matched = 0;
+        for(int i = 0; i <= 1000; i++) {
+            byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
+            byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
+
+            if(store3.get(key).size() > 0) {
+                matched++;
+            }
+        }
+        assertEquals("Atleast one key value should be returned", true, matched > 0);
+        assertEquals("Aprox 1/2th of keys should be there", true, matched > 400 && matched < 600);
+
+        // Assert server 2 have 0 partitions
+        Store<byte[], byte[]> store2 = server2.getStoreMap().get(storeName);
+        matched = 0;
+        for(int i = 0; i <= 1000; i++) {
+            byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
+            byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
+
+            if(store2.get(key).size() > 0) {
+                matched++;
+            }
+        }
+        assertEquals("Server2 should not have any key left.", 0, matched);
+
+        server3.stop();
     }
 
     private void loadEntry(byte[] key, byte[] value, String storeName) {

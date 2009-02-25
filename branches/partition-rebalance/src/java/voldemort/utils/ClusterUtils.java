@@ -121,7 +121,7 @@ public class ClusterUtils {
     public static Cluster updateClusterDonatePartitions(Cluster cluster,
                                                         int nodeId,
                                                         int numPartitions,
-                                                        boolean deleteNode) {
+                                                        boolean doNodeDelete) {
         Node deletedNode = null;
         PriorityQueue<ComparableNode> queue = new PriorityQueue<ComparableNode>();
         for(Node node: cluster.getNodes()) {
@@ -158,7 +158,7 @@ public class ClusterUtils {
                                node.getPartitions()));
         }
 
-        if(!deleteNode) {
+        if(!doNodeDelete) {
             nodes.add(new Node(deletedNode.getId(),
                                deletedNode.getHost(),
                                deletedNode.getSocketPort(),
