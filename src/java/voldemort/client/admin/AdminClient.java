@@ -319,6 +319,9 @@ public class AdminClient {
                                                        updatedCluster,
                                                        donorNode.getId(),
                                                        node.getId());
+                if(stealList.size() == 0) {
+                    continue;
+                }
                 Cluster tempCluster = getTempCluster(currentCluster, donorNode, node, stealList);
 
                 for(Node tempNode: tempCluster.getNodes()) {
@@ -452,7 +455,7 @@ public class AdminClient {
                                    node.getHttpPort(),
                                    node.getSocketPort(),
                                    node.getAdminPort(),
-                                   stealList,
+                                   partitionList,
                                    node.getStatus()));
             } else if(toNode.getId() == node.getId()) {
                 stealList.addAll(node.getPartitionIds());
