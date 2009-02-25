@@ -177,6 +177,8 @@ public class RebalancingTest extends TestCase {
         }
         assertEquals("Atleast one key value should be returned", true, matched > 0);
         assertEquals("Aprox 1/2th of keys should be there", true, matched > 400 && matched < 600);
+
+        server3.stop();
     }
 
     private void loadEntry(byte[] key, byte[] value, String storeName) {
