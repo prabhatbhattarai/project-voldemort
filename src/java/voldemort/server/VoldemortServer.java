@@ -236,6 +236,10 @@ public class VoldemortServer extends AbstractService {
         return services;
     }
 
+    public VoldemortService getAdminService() {
+        return adminService;
+    }
+
     public VoldemortService getService(String name) {
         for(VoldemortService service: services)
             if(service.getName().equals(name))

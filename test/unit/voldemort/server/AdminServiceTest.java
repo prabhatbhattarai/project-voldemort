@@ -346,7 +346,7 @@ public class AdminServiceTest extends TestCase {
         assertNotSame("Store '" + storeName + "' should not be null", null, store);
 
         // enter keys into server1 (keys 100 -- 1000)
-        for(int i = 100; i <= 104; i++) {
+        for(int i = 100; i <= 1000; i++) {
             byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
             byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
 
@@ -384,7 +384,7 @@ public class AdminServiceTest extends TestCase {
 
         int checked = 0;
         int matched = 0;
-        for(int i = 100; i <= 104; i++) {
+        for(int i = 100; i <= 1000; i++) {
             byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
             byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
 

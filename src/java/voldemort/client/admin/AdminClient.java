@@ -234,9 +234,11 @@ public class AdminClient {
      * @throws IOException
      */
     public void stealPartitionsFromCluster(int stealerNodeId, String storeName) throws IOException {
+        logger.info("Node(" + currentNode.getId() + ") Starting Steal Parttion Process");
         Cluster currentCluster = metadataStore.getCluster();
         updateClusterMetaData(stealerNodeId, currentCluster, MetadataStore.OLD_CLUSTER_KEY);
 
+        logger.info("Node(" + currentNode.getId() + ") State changed to REBALANCING MODE");
         setRebalancingStateAndRestart(stealerNodeId);
 
         Node stealerNode = currentCluster.getNodeById(stealerNodeId);
@@ -250,6 +252,7 @@ public class AdminClient {
 
         for(Node node: currentCluster.getNodes()) {
             if(node.getId() != stealerNodeId) {
+                logger.info("Node(" + currentNode.getId() + ") Stealing from node:" + node.getId());
 
                 List<Integer> stealList = getStealList(currentCluster,
                                                        updatedCluster,
@@ -266,6 +269,9 @@ public class AdminClient {
             }
         }
         setNormalStateAndRestart(stealerNode.getId());
+        logger.info("Node(" + currentNode.getId() + ") State changed back to NORMAL MODE");
+
+        logger.info("Node(" + currentNode.getId() + ") Steal process completed.");
     }
 
     /**
@@ -290,20 +296,30 @@ public class AdminClient {
      * 
      * @throws IOException
      */
-    public void returnPartitionsToCluster(int deleteNodeId, String storeName) throws IOException {
+    public void donatePartitionsToCluster(int donorNodeId,
+                                          String storeName,
+                                          int numPartitions,
+                                          boolean deleteNode) throws IOException {
+        logger.info("Node(" + currentNode.getId() + ") Starting Donate Partition Process");
+
         Cluster currentCluster = metadataStore.getCluster();
-        Cluster updatedCluster = ClusterUtils.updateClusterDeleteNode(currentCluster, deleteNodeId);
-        Node deleteNode = updatedCluster.getNodeById(deleteNodeId);
+        Cluster updatedCluster = ClusterUtils.updateClusterDonatePartitions(currentCluster,
+                                                                            donorNodeId,
+                                                                            numPartitions,
+                                                                            deleteNode);
+        Node donorNode = updatedCluster.getNodeById(donorNodeId);
 
         for(Node node: updatedCluster.getNodes()) {
-            if(node.getId() != deleteNode.getId()) {
+            if(node.getId() != donorNode.getId()) {
+                logger.info("Node(" + currentNode.getId() + ") Donating to node:" + node.getId());
+
                 updateClusterMetaData(node.getId(), currentCluster, MetadataStore.OLD_CLUSTER_KEY);
 
                 List<Integer> stealList = getStealList(currentCluster,
                                                        updatedCluster,
-                                                       deleteNode.getId(),
+                                                       donorNode.getId(),
                                                        node.getId());
-                Cluster tempCluster = getTempCluster(currentCluster, deleteNode, node, stealList);
+                Cluster tempCluster = getTempCluster(currentCluster, donorNode, node, stealList);
 
                 for(Node tempNode: tempCluster.getNodes()) {
                     updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
@@ -311,11 +327,12 @@ public class AdminClient {
 
                 setRebalancingStateAndRestart(node.getId());
 
-                pipeGetAndPutStreams(deleteNode.getId(), deleteNode.getId(), storeName, stealList);
+                pipeGetAndPutStreams(donorNode.getId(), donorNode.getId(), storeName, stealList);
 
                 setNormalStateAndRestart(node.getId());
             }
         }
+        logger.info("Node(" + currentNode.getId() + ") Donate process completed ..");
     }
 
     public void restartServices(int nodeId) {

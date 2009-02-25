@@ -68,9 +68,35 @@ public class ClusterUtilsTest extends TestCase {
         Cluster cluster = new Cluster("test-cluster", new ArrayList<Node>(nodes));
 
         // add a node and rebalance
+        Cluster updateCluster = ClusterUtils.updateClusterDonatePartitions(cluster,
+                                                                           2,
+                                                                           cluster.getNodeById(2)
+                                                                                  .getNumberOfPartitions(),
+                                                                           true);
         assertEquals("Num partitions moved do not match.",
                      3,
-                     TestUtils.getPartitionsDiff(cluster,
-                                                 ClusterUtils.updateClusterDeleteNode(cluster, 2)));
+                     TestUtils.getPartitionsDiff(cluster, updateCluster));
+
+        // assert node is removed as well
+        for(Node node: updateCluster.getNodes()) {
+            if(node.getId() == 2) {
+                fail("Deleted node should no longer be present");
+            }
+        }
+    }
+
+    public void testUpdateClusterDonatePartitions() {
+        int[][] partitionMap = new int[][] { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } };
+        Collection<Node> nodes = TestUtils.createNodes(partitionMap);
+        Cluster cluster = new Cluster("test-cluster", new ArrayList<Node>(nodes));
+
+        // add a node and rebalance
+        Cluster updateCluster = ClusterUtils.updateClusterDonatePartitions(cluster, 2, 1, false);
+        assertEquals("Num partitions moved do not match.",
+                     1,
+                     TestUtils.getPartitionsDiff(cluster, updateCluster));
+
+        // assert node is removed as well
+        assertNotSame("Deleted node should not be deleted", null, updateCluster.getNodeById(2));
     }
 }

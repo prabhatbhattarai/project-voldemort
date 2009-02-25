@@ -26,11 +26,13 @@ import org.mortbay.thread.BoundedThreadPool;
 import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
+import voldemort.client.admin.AdminClient;
 import voldemort.server.AbstractService;
 import voldemort.server.VoldemortServer;
 import voldemort.server.http.gui.AdminServlet;
 import voldemort.server.http.gui.ReadOnlyStoreManagementServlet;
 import voldemort.server.http.gui.VelocityEngine;
+import voldemort.store.socket.SocketPool;
 
 /**
  * An embedded http server that uses jetty
@@ -45,6 +47,7 @@ public class HttpService extends AbstractService {
     private final int numberOfThreads;
     private final VoldemortServer server;
     private final VelocityEngine velocityEngine;
+    private final AdminClient adminClient;
     private Server httpServer;
     private Context context;
 
@@ -54,6 +57,9 @@ public class HttpService extends AbstractService {
         this.numberOfThreads = numberOfThreads;
         this.server = server;
         this.velocityEngine = new VelocityEngine(VoldemortServletContextListener.VOLDEMORT_TEMPLATE_DIR);
+        this.adminClient = new AdminClient(server.getIdentityNode(),
+                                           server.getMetaDataStore(),
+                                           new SocketPool(100, 100, 2000));
     }
 
     @Override
@@ -74,8 +80,9 @@ public class HttpService extends AbstractService {
             context.setAttribute(VoldemortServletContextListener.SERVER_CONFIG_KEY, server);
             context.setAttribute(VoldemortServletContextListener.VELOCITY_ENGINE_KEY,
                                  velocityEngine);
-            context.addServlet(new ServletHolder(new AdminServlet(server, velocityEngine)),
-                               "/admin");
+            context.addServlet(new ServletHolder(new AdminServlet(server,
+                                                                  velocityEngine,
+                                                                  adminClient)), "/admin");
             context.addServlet(new ServletHolder(new StoreServlet(server.getStoreMap())), "/*");
             context.addServlet(new ServletHolder(new ReadOnlyStoreManagementServlet(server,
                                                                                     velocityEngine)),
