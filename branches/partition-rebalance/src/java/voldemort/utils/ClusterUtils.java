@@ -118,7 +118,10 @@ public class ClusterUtils {
      * @param nodeId
      * @return
      */
-    public static Cluster updateClusterDeleteNode(Cluster cluster, int nodeId) {
+    public static Cluster updateClusterDonatePartitions(Cluster cluster,
+                                                        int nodeId,
+                                                        int numPartitions,
+                                                        boolean deleteNode) {
         Node deletedNode = null;
         PriorityQueue<ComparableNode> queue = new PriorityQueue<ComparableNode>();
         for(Node node: cluster.getNodes()) {
@@ -133,12 +136,15 @@ public class ClusterUtils {
         }
 
         ArrayList<Integer> stealList = new ArrayList<Integer>(deletedNode.getPartitionIds());
-        while(stealList.size() > 0) {
+        int partitionsDonated = 0;
+        while(partitionsDonated < numPartitions) {
             ComparableNode node = queue.poll();
 
             // add the node back into queue
             node.getPartitions().add(stealList.remove(stealList.size() - 1));
             queue.add(node);
+
+            partitionsDonated++;
         }
 
         // Lets make the new Cluster now !!
@@ -152,6 +158,14 @@ public class ClusterUtils {
                                node.getPartitions()));
         }
 
+        if(!deleteNode) {
+            nodes.add(new Node(deletedNode.getId(),
+                               deletedNode.getHost(),
+                               deletedNode.getSocketPort(),
+                               deletedNode.getAdminPort(),
+                               deletedNode.getHttpPort(),
+                               stealList));
+        }
         return new Cluster(cluster.getName(), nodes);
     }
 

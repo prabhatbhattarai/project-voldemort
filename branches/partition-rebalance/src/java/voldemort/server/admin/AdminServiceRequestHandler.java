@@ -246,8 +246,6 @@ public class AdminServiceRequestHandler {
                     outputStream.writeInt(clock.length + value.length);
                     outputStream.write(clock);
                     outputStream.write(value);
-
-                    outputStream.flush();
                 }
             }
             // close the iterator here
@@ -256,6 +254,8 @@ public class AdminServiceRequestHandler {
             outputStream.writeShort(0);
             // indicate that all keys are done
             outputStream.writeInt(-1);
+            outputStream.flush();
+
         } catch(VoldemortException e) {
             writeException(outputStream, e);
         }
