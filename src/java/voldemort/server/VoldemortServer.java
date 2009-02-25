@@ -99,6 +99,20 @@ public class VoldemortServer extends AbstractService {
         this.adminService = createAdminService(metadataStore, services);
     }
 
+    public VoldemortServer(VoldemortConfig config, Cluster cluster) {
+        super("voldemort-server");
+        this.voldemortConfig = config;
+        this.cluster = cluster;
+        this.identityNode = cluster.getNodeById(voldemortConfig.getNodeId());
+        this.storeMap = new ConcurrentHashMap<String, Store<byte[], byte[]>>();
+        this.storeEngineMap = new ConcurrentHashMap<String, StorageEngine<byte[], byte[]>>();
+        this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
+                                                                           voldemortConfig.getMetadataDirectory()),
+                                               storeMap);
+        this.services = createServices(metadataStore);
+        this.adminService = createAdminService(metadataStore, services);
+    }
+
     private AdminService createAdminService(MetadataStore metaStore,
                                             List<VoldemortService> serviceList) {
         return new AdminService("admin-service",
