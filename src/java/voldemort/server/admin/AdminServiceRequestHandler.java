@@ -170,10 +170,12 @@ public class AdminServiceRequestHandler {
                                                                                         clock.sizeInBytes(),
                                                                                         value.length),
                                                                          clock);
-                // TODO: clean this after all testing
-                System.out.println("put(Node:" + nodeId + " store:" + engine.getName() + ") key:"
-                                   + new String(key) + " value:"
-                                   + new String(versionedValue.getValue()));
+                /*
+                 * TODO: clean this after all testing
+                 * System.out.println("put(Node:" + nodeId + " store:" +
+                 * engine.getName() + ") key:" + new String(key) + " value:" +
+                 * new String(versionedValue.getValue()));
+                 */
                 engine.put(key, versionedValue);
 
                 keySize = inputStream.readInt(); // read next KeySize
@@ -239,9 +241,12 @@ public class AdminServiceRequestHandler {
                     byte[] clock = ((VectorClock) entry.getValue().getVersion()).toBytes();
                     byte[] value = entry.getValue().getValue();
 
-                    // TODO: clean this after all testing
-                    System.out.println("get(Node:" + nodeId + " store:" + engine.getName()
-                                       + ") key:" + new String(key) + " value:" + new String(value));
+                    /*
+                     * TODO: clean this after all testing
+                     * System.out.println("get(Node:" + nodeId + " store:" +
+                     * engine.getName() + ") key:" + new String(key) + " value:" +
+                     * new String(value));
+                     */
 
                     outputStream.writeInt(clock.length + value.length);
                     outputStream.write(clock);
