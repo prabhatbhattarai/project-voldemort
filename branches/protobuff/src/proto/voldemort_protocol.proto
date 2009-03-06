@@ -29,7 +29,6 @@ message KeyedVersions {
 }
 
 message GetRequest {
-  optional int32 from_node = 1 [default = -1];
   optional bool should_route = 2 [default = false];
   repeated bytes ids = 3;
 }
@@ -40,8 +39,6 @@ message GetResponse {
 }
 
 message PutRequest {
-  optional int32 from_node = 1 [default = -1];
-  optional int32 to_node = 2 [default = -1];
   optional bool should_route = 3 [default = false];
   optional bytes key = 4;
   optional Versioned versioned = 5;
@@ -52,8 +49,6 @@ message PutResponse {
 }
 
 message DeleteRequest {
-  optional int32 from_node = 1 [default = -1];
-  optional int32 to_node = 2 [default = -1];
   optional bool should_route = 3 [default = false];
   optional bytes key = 4;
   optional VectorClock version = 5;

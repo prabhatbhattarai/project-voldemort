@@ -18,9 +18,15 @@ package voldemort;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
+import junit.framework.AssertionFailedError;
+import voldemort.store.Store;
 import voldemort.versioning.VectorClock;
+import voldemort.versioning.Versioned;
+
+import com.google.common.base.Objects;
 
 /**
  * Helper utilities for tests
@@ -113,6 +119,22 @@ public class TestUtils {
         byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         return bytes;
+    }
+
+    public static <K, V> void assertContains(Store<K, V> store, K key, V... values) {
+        List<Versioned<V>> found = store.get(key);
+        if(found.size() != values.length)
+            throw new AssertionFailedError("Expected to find " + values.length
+                                           + " values in store, but found only " + found.size()
+                                           + ".");
+        for(V v: values) {
+            boolean isFound = false;
+            for(Versioned<V> f: found)
+                if(Objects.deepEquals(f.getValue(), v))
+                    isFound = true;
+            if(!isFound)
+                throw new AssertionFailedError("Could not find value " + v + " in results.");
+        }
     }
 
     /**

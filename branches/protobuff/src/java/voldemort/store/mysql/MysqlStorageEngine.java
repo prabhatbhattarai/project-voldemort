@@ -90,7 +90,7 @@ public class MysqlStorageEngine implements StorageEngine<byte[], byte[]> {
     public void create() {
         execute("create table "
                 + getName()
-                + " (key_ varbinary(200) not null, version_ varbinary(200) not null, value_ blob, primary key(key_, version_))");
+                + " (key_ varbinary(200) not null, version_ varbinary(200) not null, value_ blob, primary key(key_, version_)) engine=InnoDB");
     }
 
     public void execute(String query) {
@@ -242,6 +242,7 @@ public class MysqlStorageEngine implements StorageEngine<byte[], byte[]> {
             insert.setBytes(2, clock.toBytes());
             insert.setBytes(3, value.getValue());
             insert.executeUpdate();
+            doCommit = true;
         } catch(SQLException e) {
             if(e.getErrorCode() == MYSQL_ERR_DUP_KEY || e.getErrorCode() == MYSQL_ERR_DUP_ENTRY) {
                 e.printStackTrace();
