@@ -31,5 +31,7 @@ mavenification/
 			test/...
 	docs/...
 
+* With Eclipse, use the m2 plugin to import projects into your workspace.
 * Server will have a dependency on client
 * Use maven assembly to package up for distribution, rather than root be distribution, as the maven build structure is not conducive to a distribution.
+* Need to figure out how to handle thrift better.
