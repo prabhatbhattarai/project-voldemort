@@ -10,6 +10,16 @@
 	<name>Project Voldemort - Server</name>
 	<dependencies>
 		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>voldemort-annotations</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>voldemort-client</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
 			<groupId>com.google.code.google-collections</groupId>
 			<artifactId>google-collect</artifactId>
 			<scope>compile</scope>
