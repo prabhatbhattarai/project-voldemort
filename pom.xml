@@ -13,6 +13,7 @@
 		<url>https://project-voldemort.googlecode.com/svn/trunk</url>
 	</scm>
 	<modules>
+		<module>annotations</module>
 		<module>client</module>
 		<module>server</module>
 	</modules>
@@ -53,13 +54,19 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>voldemort</groupId>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>voldemort-annotations</artifactId>
+				<version>${project.version}</version>
+				<scope>compile</scope>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
 				<artifactId>voldemort-client</artifactId>
 				<version>${project.version}</version>
 				<scope>compile</scope>
 			</dependency>
 			<dependency>
-				<groupId>voldemort</groupId>
+				<groupId>${project.groupId}</groupId>
 				<artifactId>voldemort-server</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>

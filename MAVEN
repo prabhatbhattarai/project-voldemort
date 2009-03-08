@@ -5,6 +5,9 @@ mavenification/
 		src/main/
 			java/...
 			test/...
+	annotations/
+		pom.xml (voldemort:voldemort-annotations)
+		src/main/java/
 	server/
 		pom.xml (voldemort:voldemort-server)
 		src/main/
@@ -35,3 +38,24 @@ mavenification/
 * Server will have a dependency on client
 * Use maven assembly to package up for distribution, rather than root be distribution, as the maven build structure is not conducive to a distribution.
 * Need to figure out how to handle thrift better.
+* Store has some leaks into Client. Particularly, in memory and httpstore.
+
+* What client needs
+*voldemort.VoldemortClientShell
+*voldemort.VoldemortException
+*voldemort.client.*
+*voldemort.annotations.concurrency.Threadsafe
+*voldemort.cluster.*
+*voldemort.routing.*
+*voldemort.serialization.*
+*voldemort.utils.*
+voldemort.store.Store
+voldemort.store.StoreOperationFailureException
+voldemort.store.http.HttpStore
+voldemort.store.memory.InMemoryStorageEngine
+voldemort.store.serialized.SerializingStore
+voldemort.store.versioned.InconsistencyResolvingStore
+voldemort.store.versioned.VersionIncrementingStore
+voldemort.store.socket.SocketPool
+voldemort.store.socket.SocketStore
+*voldemort.versioning.*
