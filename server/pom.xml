@@ -20,8 +20,8 @@
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.google.code.google-collections</groupId>
-			<artifactId>google-collect</artifactId>
+			<groupId>com.google.collections</groupId>
+			<artifactId>google-collections</artifactId>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
