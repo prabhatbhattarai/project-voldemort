@@ -38,7 +38,7 @@ mavenification/
 * Server will have a dependency on client
 * Use maven assembly to package up for distribution, rather than root be distribution, as the maven build structure is not conducive to a distribution.
 * Need to figure out how to handle thrift better.
-* Store has some leaks into Client. Particularly, in memory and httpstore.
+* Store has some leaks into Client. Particularly, in memory and httpstore. May need to rethink bring over whole packages, and may need to bring over partial packages for now.
 
 * What client needs
 *voldemort.VoldemortClientShell

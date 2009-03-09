@@ -45,11 +45,6 @@
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>commons-httpclient</groupId>
-			<artifactId>commons-httpclient</artifactId>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<scope>compile</scope>
@@ -68,12 +63,6 @@
 			<groupId>org.mortbay.jetty</groupId>
 			<artifactId>jetty</artifactId>
 			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.facebook.thrift</groupId>
-			<artifactId>libthrift</artifactId>
-			<scope>compile</scope>
-			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>com.google.protobuf</groupId>
