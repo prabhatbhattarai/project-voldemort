@@ -18,13 +18,13 @@ import voldemort.versioning.ObsoleteVersionException;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
-public abstract class WireFormatTest extends TestCase {
+public abstract class AbstractWireFormatTest extends TestCase {
 
     private final String storeName;
     private final WireFormat wireFormat;
     private final InMemoryStorageEngine<byte[], byte[]> store;
 
-    public WireFormatTest(WireFormatType type) {
+    public AbstractWireFormatTest(WireFormatType type) {
         this.storeName = "test";
         ConcurrentMap<String, StorageEngine<byte[], byte[]>> stores = new ConcurrentHashMap<String, StorageEngine<byte[], byte[]>>();
         this.store = new InMemoryStorageEngine<byte[], byte[]>(storeName);
@@ -91,15 +91,15 @@ public abstract class WireFormatTest extends TestCase {
         this.store.put("hello".getBytes(), new Versioned<byte[]>("world".getBytes(),
                                                                  new VectorClock()));
         testPutRequest("hello".getBytes(),
-                         "world".getBytes(),
-                         new VectorClock(),
-                         ObsoleteVersionException.class);
+                       "world".getBytes(),
+                       new VectorClock(),
+                       ObsoleteVersionException.class);
     }
 
     public void testPutRequest(byte[] key,
-                                 byte[] value,
-                                 VectorClock version,
-                                 Class<? extends VoldemortException> exception) throws Exception {
+                               byte[] value,
+                               VectorClock version,
+                               Class<? extends VoldemortException> exception) throws Exception {
         try {
             ByteArrayOutputStream putRequest = new ByteArrayOutputStream();
             this.wireFormat.writePutRequest(new DataOutputStream(putRequest),

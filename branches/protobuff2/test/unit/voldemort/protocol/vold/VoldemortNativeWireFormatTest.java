@@ -1,9 +1,9 @@
 package voldemort.protocol.vold;
 
-import voldemort.protocol.WireFormatTest;
+import voldemort.protocol.AbstractWireFormatTest;
 import voldemort.protocol.WireFormatType;
 
-public class VoldemortNativeWireFormatTest extends WireFormatTest {
+public class VoldemortNativeWireFormatTest extends AbstractWireFormatTest {
 
     public VoldemortNativeWireFormatTest() {
         super(WireFormatType.VOLDEMORT);
