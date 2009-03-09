@@ -18,6 +18,7 @@
 		<module>server</module>
 	</modules>
 	<build>
+		<defaultGoal>package</defaultGoal>
 		<extensions>
 			<extension>
 				<groupId>org.apache.maven.wagon</groupId>
