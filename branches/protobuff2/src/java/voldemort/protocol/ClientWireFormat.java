@@ -4,25 +4,32 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
+import voldemort.utils.ByteArray;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
-public interface WireFormat {
-
-    public void handleRequest(DataInputStream inputStream, DataOutputStream outputStream)
-            throws IOException;
+public interface ClientWireFormat {
 
     public void writeGetRequest(DataOutputStream output,
                                 String storeName,
-                                byte[] key,
+                                ByteArray key,
                                 boolean shouldReroute) throws IOException;
 
     public List<Versioned<byte[]>> readGetResponse(DataInputStream stream) throws IOException;
 
+    public void writeGetAllRequest(DataOutputStream output,
+                                   String storeName,
+                                   Iterable<ByteArray> key,
+                                   boolean shouldReroute) throws IOException;
+
+    public Map<ByteArray, List<Versioned<byte[]>>> readGetAllResponse(DataInputStream stream)
+            throws IOException;
+
     public void writePutRequest(DataOutputStream output,
                                 String storeName,
-                                byte[] key,
+                                ByteArray key,
                                 byte[] value,
                                 VectorClock version,
                                 boolean shouldReroute) throws IOException;
@@ -31,7 +38,7 @@ public interface WireFormat {
 
     public void writeDeleteRequest(DataOutputStream output,
                                    String storeName,
-                                   byte[] key,
+                                   ByteArray key,
                                    VectorClock version,
                                    boolean shouldReroute) throws IOException;
 

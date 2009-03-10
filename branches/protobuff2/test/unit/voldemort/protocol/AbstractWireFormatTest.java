@@ -6,6 +6,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -14,6 +15,7 @@ import voldemort.TestUtils;
 import voldemort.VoldemortException;
 import voldemort.store.StorageEngine;
 import voldemort.store.memory.InMemoryStorageEngine;
+import voldemort.utils.ByteArray;
 import voldemort.versioning.ObsoleteVersionException;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
@@ -21,15 +23,17 @@ import voldemort.versioning.Versioned;
 public abstract class AbstractWireFormatTest extends TestCase {
 
     private final String storeName;
-    private final WireFormat wireFormat;
-    private final InMemoryStorageEngine<byte[], byte[]> store;
+    private final ClientWireFormat clientWireFormat;
+    private final ServerWireFormat serverWireFormat;
+    private final InMemoryStorageEngine<ByteArray, byte[]> store;
 
     public AbstractWireFormatTest(WireFormatType type) {
         this.storeName = "test";
-        ConcurrentMap<String, StorageEngine<byte[], byte[]>> stores = new ConcurrentHashMap<String, StorageEngine<byte[], byte[]>>();
-        this.store = new InMemoryStorageEngine<byte[], byte[]>(storeName);
+        ConcurrentMap<String, StorageEngine<ByteArray, byte[]>> stores = new ConcurrentHashMap<String, StorageEngine<ByteArray, byte[]>>();
+        this.store = new InMemoryStorageEngine<ByteArray, byte[]>(storeName);
         stores.put("test", store);
-        this.wireFormat = new WireFormatFactory(stores, stores).getWireFormat(type);
+        this.clientWireFormat = new ClientWireFormatFactory().getWireFormat(type);
+        this.serverWireFormat = new ServerWireFormatFactory(stores, stores).getWireFormat(type);
     }
 
     public void testNullKeys() throws Exception {
@@ -40,36 +44,36 @@ public abstract class AbstractWireFormatTest extends TestCase {
             // this is good
         }
 
-        try {
-            // testRequest(null, null, null, false);
-            fail("Null key allowed.");
-        } catch(IllegalArgumentException e) {
-            // this is good
-        }
     }
 
     public void testGetRequests() throws Exception {
-        testGetRequest("hello".getBytes(), null, null, false);
-        testGetRequest("hello".getBytes(), "".getBytes(), new VectorClock(), true);
-        testGetRequest("hello".getBytes(), "abc".getBytes(), TestUtils.getClock(1, 2, 2, 3), true);
-        testGetRequest("hello".getBytes(),
+        testGetRequest(ByteArray.valueOf("hello"), null, null, false);
+        testGetRequest(ByteArray.valueOf("hello"), "".getBytes(), new VectorClock(), true);
+        testGetRequest(ByteArray.valueOf("hello"),
+                       "abc".getBytes(),
+                       TestUtils.getClock(1, 2, 2, 3),
+                       true);
+        testGetRequest(ByteArray.valueOf("hello"),
                        "abcasdf".getBytes(),
                        TestUtils.getClock(1, 3, 4, 5),
                        true);
 
     }
 
-    public void testGetRequest(byte[] key, byte[] value, VectorClock version, boolean isPresent)
+    public void testGetRequest(ByteArray key, byte[] value, VectorClock version, boolean isPresent)
             throws Exception {
         try {
             if(isPresent)
                 store.put(key, Versioned.value(value, version));
             ByteArrayOutputStream getRequest = new ByteArrayOutputStream();
-            this.wireFormat.writeGetRequest(new DataOutputStream(getRequest), storeName, key, false);
+            this.clientWireFormat.writeGetRequest(new DataOutputStream(getRequest),
+                                                  storeName,
+                                                  key,
+                                                  false);
             ByteArrayOutputStream getResponse = new ByteArrayOutputStream();
-            this.wireFormat.handleRequest(inputStream(getRequest),
-                                          new DataOutputStream(getResponse));
-            List<Versioned<byte[]>> values = this.wireFormat.readGetResponse(inputStream(getResponse));
+            this.serverWireFormat.handleRequest(inputStream(getRequest),
+                                                new DataOutputStream(getResponse));
+            List<Versioned<byte[]>> values = this.clientWireFormat.readGetResponse(inputStream(getResponse));
             if(isPresent) {
                 assertEquals(1, values.size());
                 Versioned<byte[]> v = values.get(0);
@@ -83,35 +87,92 @@ public abstract class AbstractWireFormatTest extends TestCase {
         }
     }
 
+    public void testGetAllRequests() throws Exception {
+        testGetAllRequest(new ByteArray[] {},
+                          new byte[][] {},
+                          new VectorClock[] {},
+                          new boolean[] {});
+
+        testGetAllRequest(new ByteArray[] { new ByteArray() },
+                          new byte[][] { new byte[] {} },
+                          new VectorClock[] { new VectorClock() },
+                          new boolean[] { true });
+
+        testGetAllRequest(new ByteArray[] { ByteArray.valueOf("hello") },
+                          new byte[][] { "world".getBytes() },
+                          new VectorClock[] { new VectorClock() },
+                          new boolean[] { true });
+
+        testGetAllRequest(new ByteArray[] { ByteArray.valueOf("hello"), ByteArray.valueOf("holly") },
+                          new byte[][] { "world".getBytes(), "cow".getBytes() },
+                          new VectorClock[] { TestUtils.getClock(1, 1), TestUtils.getClock(1, 2) },
+                          new boolean[] { true, false });
+    }
+
+    public void testGetAllRequest(ByteArray[] keys,
+                                  byte[][] values,
+                                  VectorClock[] versions,
+                                  boolean[] isFound) throws Exception {
+        try {
+            for(int i = 0; i < keys.length; i++) {
+                if(isFound[i])
+                    store.put(keys[i], Versioned.value(values[i], versions[i]));
+            }
+            ByteArrayOutputStream getAllRequest = new ByteArrayOutputStream();
+            this.clientWireFormat.writeGetAllRequest(new DataOutputStream(getAllRequest),
+                                                     storeName,
+                                                     Arrays.asList(keys),
+                                                     false);
+            ByteArrayOutputStream getAllResponse = new ByteArrayOutputStream();
+            this.serverWireFormat.handleRequest(inputStream(getAllRequest),
+                                                new DataOutputStream(getAllResponse));
+            Map<ByteArray, List<Versioned<byte[]>>> found = this.clientWireFormat.readGetAllResponse(inputStream(getAllResponse));
+            for(int i = 0; i < keys.length; i++) {
+                if(isFound[i]) {
+                    assertTrue(keys[i] + " is not in the found set.", found.containsKey(keys[i]));
+                    assertEquals(1, found.get(keys[i]).size());
+                    Versioned<byte[]> versioned = found.get(keys[i]).get(0);
+                    assertEquals(versions[i], versioned.getVersion());
+                    assertTrue(Arrays.equals(values[i], versioned.getValue()));
+                } else {
+                    assertTrue(keys[i] + " is in the found set but should not be.",
+                               !found.containsKey(keys[i]));
+                }
+            }
+        } finally {
+            this.store.deleteAll();
+        }
+    }
+
     public void testPutRequests() throws Exception {
-        testPutRequest(new byte[0], new byte[0], new VectorClock(), null);
-        testPutRequest("hello".getBytes(), "world".getBytes(), new VectorClock(), null);
+        testPutRequest(new ByteArray(), new byte[0], new VectorClock(), null);
+        testPutRequest(ByteArray.valueOf("hello"), "world".getBytes(), new VectorClock(), null);
 
         // test obsolete exception
-        this.store.put("hello".getBytes(), new Versioned<byte[]>("world".getBytes(),
-                                                                 new VectorClock()));
-        testPutRequest("hello".getBytes(),
+        this.store.put(ByteArray.valueOf("hello"), new Versioned<byte[]>("world".getBytes(),
+                                                                         new VectorClock()));
+        testPutRequest(ByteArray.valueOf("hello"),
                        "world".getBytes(),
                        new VectorClock(),
                        ObsoleteVersionException.class);
     }
 
-    public void testPutRequest(byte[] key,
+    public void testPutRequest(ByteArray key,
                                byte[] value,
                                VectorClock version,
                                Class<? extends VoldemortException> exception) throws Exception {
         try {
             ByteArrayOutputStream putRequest = new ByteArrayOutputStream();
-            this.wireFormat.writePutRequest(new DataOutputStream(putRequest),
-                                            storeName,
-                                            key,
-                                            value,
-                                            version,
-                                            false);
+            this.clientWireFormat.writePutRequest(new DataOutputStream(putRequest),
+                                                  storeName,
+                                                  key,
+                                                  value,
+                                                  version,
+                                                  false);
             ByteArrayOutputStream putResponse = new ByteArrayOutputStream();
-            this.wireFormat.handleRequest(inputStream(putRequest),
-                                          new DataOutputStream(putResponse));
-            this.wireFormat.readPutResponse(inputStream(putResponse));
+            this.serverWireFormat.handleRequest(inputStream(putRequest),
+                                                new DataOutputStream(putResponse));
+            this.clientWireFormat.readPutResponse(inputStream(putResponse));
             TestUtils.assertContains(this.store, key, value);
         } catch(Exception e) {
             assertEquals("Unexpected exception " + e.getClass().getName(), e.getClass(), exception);
@@ -122,20 +183,20 @@ public abstract class AbstractWireFormatTest extends TestCase {
 
     public void testDeleteRequests() throws Exception {
         // test pre-existing are deleted
-        testDeleteRequest(new byte[0],
+        testDeleteRequest(new ByteArray(),
                           new VectorClock(),
                           new Versioned<byte[]>("hello".getBytes()),
                           true);
-        testDeleteRequest("hello".getBytes(),
+        testDeleteRequest(ByteArray.valueOf("hello"),
                           new VectorClock(),
                           new Versioned<byte[]>("world".getBytes()),
                           true);
 
         // test non-existant aren't deleted
-        testDeleteRequest("hello".getBytes(), new VectorClock(), null, false);
+        testDeleteRequest(ByteArray.valueOf("hello"), new VectorClock(), null, false);
     }
 
-    public void testDeleteRequest(byte[] key,
+    public void testDeleteRequest(ByteArray key,
                                   VectorClock version,
                                   Versioned<byte[]> existingValue,
                                   boolean isDeleted) throws Exception {
@@ -143,15 +204,15 @@ public abstract class AbstractWireFormatTest extends TestCase {
             if(existingValue != null)
                 this.store.put(key, existingValue);
             ByteArrayOutputStream delRequest = new ByteArrayOutputStream();
-            this.wireFormat.writeDeleteRequest(new DataOutputStream(delRequest),
-                                               storeName,
-                                               key,
-                                               version,
-                                               false);
+            this.clientWireFormat.writeDeleteRequest(new DataOutputStream(delRequest),
+                                                     storeName,
+                                                     key,
+                                                     version,
+                                                     false);
             ByteArrayOutputStream delResponse = new ByteArrayOutputStream();
-            this.wireFormat.handleRequest(inputStream(delRequest),
-                                          new DataOutputStream(delResponse));
-            boolean wasDeleted = this.wireFormat.readDeleteResponse(inputStream(delResponse));
+            this.serverWireFormat.handleRequest(inputStream(delRequest),
+                                                new DataOutputStream(delResponse));
+            boolean wasDeleted = this.clientWireFormat.readDeleteResponse(inputStream(delResponse));
             assertEquals(isDeleted, wasDeleted);
         } finally {
             this.store.deleteAll();
