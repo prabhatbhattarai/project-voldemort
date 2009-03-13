@@ -10,11 +10,6 @@
 	<name>Project Voldemort - Client</name>
 	<dependencies>
 		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>voldemort-annotations</artifactId>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
 			<groupId>jdom</groupId>
 			<artifactId>jdom</artifactId>
 			<scope>compile</scope>
