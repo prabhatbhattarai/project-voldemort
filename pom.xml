@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>voldemort</groupId>
+	<groupId>com.project-voldemort</groupId>
 	<artifactId>voldemort</artifactId>
 	<packaging>pom</packaging>
 	<name>Project Voldemort</name>
@@ -220,6 +220,12 @@
 		</dependencies>
 	</dependencyManagement>
 	<repositories>
+		<repository>
+			<id>oracleReleases</id>
+			<name>Oracle Released Java Packages</name>
+			<url>http://download.oracle.com/maven</url>
+			<layout>default</layout>
+		</repository>
 		<repository>
 			<id>oracleReleases</id>
 			<name>Oracle Released Java Packages</name>
