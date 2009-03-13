@@ -23,6 +23,7 @@ import voldemort.annotations.jmx.JmxManaged;
 import voldemort.server.AbstractService;
 import voldemort.server.VoldemortService;
 import voldemort.store.Store;
+import voldemort.store.metadata.MetadataStore;
 import voldemort.utils.ByteArray;
 
 /**
@@ -34,24 +35,42 @@ import voldemort.utils.ByteArray;
 @JmxManaged(description = "A server that handles remote operations on stores via tcp/ip.")
 public class SocketService extends AbstractService implements VoldemortService {
 
-    private final SocketServer server;
+    private SocketServer server;
+    private final ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap;
+    private final int port;
+    private final int coreConnections;
+    private final int maxConnections;
+    private final MetadataStore metadataStore;
+    private final int nodeId;
+    private final int socketBufferSize;
 
     public SocketService(String name,
                          ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap,
                          int port,
                          int coreConnections,
+                         int socketBufferSize,
                          int maxConnections,
-                         int socketBufferSize) {
+                         MetadataStore metadataStore,
+                         int nodeId) {
         super(name);
-        this.server = new SocketServer(storeMap,
-                                       port,
-                                       coreConnections,
-                                       maxConnections,
-                                       socketBufferSize);
+        this.storeMap = storeMap;
+        this.port = port;
+        this.coreConnections = coreConnections;
+        this.maxConnections = maxConnections;
+        this.metadataStore = metadataStore;
+        this.nodeId = nodeId;
+        this.socketBufferSize = socketBufferSize;
     }
 
     @Override
     protected void startInner() {
+        this.server = new SocketServer(storeMap,
+                                       port,
+                                       coreConnections,
+                                       maxConnections,
+                                       socketBufferSize,
+                                       metadataStore,
+                                       nodeId);
         this.server.start();
     }
 

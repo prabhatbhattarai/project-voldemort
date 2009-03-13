@@ -105,9 +105,11 @@ public class Cluster implements Serializable {
             builder.append(n.toString());
             builder.append(", ");
         }
+        builder.deleteCharAt(builder.length() - 2);
+        builder.deleteCharAt(builder.length() - 1);
+
         builder.append("])");
 
         return builder.toString();
     }
-
 }
