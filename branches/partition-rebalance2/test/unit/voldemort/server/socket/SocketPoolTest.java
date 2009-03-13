@@ -58,12 +58,16 @@ public class SocketPoolTest extends TestCase {
                                         port1,
                                         maxTotalConnections,
                                         maxTotalConnections + 3,
-                                        10000);
+                                        10000,
+                                        null,
+                                        0);
         this.server2 = new SocketServer(new ConcurrentHashMap<String, Store<ByteArray, byte[]>>(),
                                         port2,
                                         maxTotalConnections,
                                         maxTotalConnections + 3,
-                                        10000);
+                                        10000,
+                                        null,
+                                        1);
         this.server1.start();
         this.server1.awaitStartupCompletion();
         this.server2.start();

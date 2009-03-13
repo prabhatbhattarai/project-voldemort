@@ -54,5 +54,4 @@ public interface StorageEngine<K, V> extends Store<K, V> {
      * @return An iterator over the entries in this StorageEngine.
      */
     public ClosableIterator<Pair<K, Versioned<V>>> entries();
-
 }

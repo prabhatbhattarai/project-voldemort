@@ -16,7 +16,6 @@
 
 package voldemort.server.storage;
 
-import java.io.File;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -82,17 +81,22 @@ public class StorageService extends AbstractService {
     private final VoldemortConfig voldemortConfig;
     private final ConcurrentMap<String, Store<ByteArray, byte[]>> localStoreMap;
     private final Map<String, StorageEngine<ByteArray, byte[]>> rawEngines;
-    private final ConcurrentMap<StorageEngineType, StorageConfiguration> storageConfigurations;
+    private final ConcurrentMap<String, StorageEngine<ByteArray, byte[]>> storeEngineMap;
     private final StoreDefinitionsMapper storeMapper;
     private final SchedulerService scheduler;
     private final Map<String, RandomAccessFileStore> readOnlyStores;
     private MetadataStore metadataStore;
     private Store<ByteArray, Slop> slopStore;
+    private final VoldemortConfig config;
+
+    private ConcurrentMap<StorageEngineType, StorageConfiguration> storageConfigurations;
 
     public StorageService(String name,
                           ConcurrentMap<String, Store<ByteArray, byte[]>> storeMap,
+                          ConcurrentMap<String, StorageEngine<ByteArray, byte[]>> storeEngineMap,
                           SchedulerService scheduler,
-                          VoldemortConfig config) {
+                          VoldemortConfig config,
+                          MetadataStore metaDataStore) {
         super(name);
         this.voldemortConfig = config;
         this.storeMapper = new StoreDefinitionsMapper();
@@ -100,8 +104,10 @@ public class StorageService extends AbstractService {
         this.rawEngines = new ConcurrentHashMap<String, StorageEngine<ByteArray, byte[]>>();
         this.scheduler = scheduler;
         this.storageConfigurations = initStorageConfigurations(config);
-        this.metadataStore = new MetadataStore(new File(config.getMetadataDirectory()), storeMap);
+        this.metadataStore = metaDataStore;
         this.readOnlyStores = new ConcurrentHashMap<String, RandomAccessFileStore>();
+        this.storeEngineMap = storeEngineMap;
+        this.config = config;
     }
 
     private ConcurrentMap<StorageEngineType, StorageConfiguration> initStorageConfigurations(VoldemortConfig config) {
@@ -127,6 +133,8 @@ public class StorageService extends AbstractService {
     @Override
     protected void startInner() {
         this.localStoreMap.clear();
+        this.storageConfigurations = initStorageConfigurations(config);
+
         this.localStoreMap.put(MetadataStore.METADATA_STORE_NAME, metadataStore);
         Store<ByteArray, byte[]> slopStorage = getStore("slop", voldemortConfig.getSlopStoreType());
         this.slopStore = new SerializingStore<ByteArray, Slop>(slopStorage,
@@ -161,6 +169,7 @@ public class StorageService extends AbstractService {
                 if(voldemortConfig.isStatTrackingEnabled())
                     store = new StatTrackingStore<ByteArray, byte[]>(store);
                 this.localStoreMap.put(def.getName(), store);
+                this.storeEngineMap.put(def.getName(), engine);
             }
         }
         logger.info("All stores initialized.");
@@ -207,16 +216,10 @@ public class StorageService extends AbstractService {
     @Override
     protected void stopInner() {
         try {
-            if(metadataStore != null)
-                metadataStore.close();
-        } catch(VoldemortException e) {
-            logger.error("Error while closing metadata store:", e);
-        }
-        try {
             if(slopStore != null)
                 slopStore.close();
         } catch(VoldemortException e) {
-            logger.error("Error while closing metadata store:", e);
+            logger.error("Error while closing slop store:", e);
         }
         VoldemortException exception = null;
         logger.info("Closing stores:");

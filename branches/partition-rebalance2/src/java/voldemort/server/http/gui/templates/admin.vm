@@ -39,7 +39,29 @@
   
   	<div class="content">
   	 	<h1>Voldemort Administration</h1>
+  	 	<h2> Admin Operations </h2>
   	 	
+  	 	   <tr>
+            <td>  
+            <div class="Steal Partitions" style="text-align:center"> 	 	  
+             <form action="admin" method="post">
+               <input type="text" name="storeName" value = "storeName (all for All)"/>
+               <input type="submit" name="steal" value="Steal Partitions"/>
+             </form>
+            </div>
+            </td> 
+           <td>   	
+           <form action="admin" method="post">
+            <div class="Donate Partitions" style="text-align:center"> 	 	  
+               <input type="text" name="storeName" value = "storeName (all for All)"/>
+               <input type="text" name="numPartitions" value="num Partitions (-1 for all)" />
+               <input type="submit" name="donate" value="Donate Partitions"/>
+               </div>
+           </form>
+            </td> 
+          </tr>
+               
+                
 	  	<h2>Open Stores</h2>
 	    <table class="vTable">
 	      <tr>
@@ -87,6 +109,10 @@
             <td>$service.isStarted()</td>
           </tr>
         #end
+        <tr>
+	   	    <td>$adminService.getName()</td>
+	   	    <td>$adminService.isStarted()</td>
+	   	  </tr>
         </table>
 	</div>
   </body>

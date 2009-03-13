@@ -36,6 +36,7 @@ import voldemort.server.VoldemortConfig;
 import voldemort.server.http.StoreServlet;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
+import voldemort.store.filesystem.FilesystemStorageEngine;
 import voldemort.store.http.HttpStore;
 import voldemort.store.memory.InMemoryStorageEngine;
 import voldemort.store.metadata.MetadataStore;
@@ -64,7 +65,9 @@ public class ServerTestUtils {
         try {
             FileUtils.writeStringToFile(new File(metadataDir, "cluster.xml"), clusterXml);
             FileUtils.writeStringToFile(new File(metadataDir, "stores.xml"), storesXml);
-            MetadataStore metadata = new MetadataStore(metadataDir, stores);
+            MetadataStore metadata = new MetadataStore(new FilesystemStorageEngine("metadata-file-store",
+                                                                                   metadataDir.getAbsolutePath()),
+                                                       stores);
             stores.put(MetadataStore.METADATA_STORE_NAME, metadata);
             return stores;
         } catch(IOException e) {
@@ -81,7 +84,9 @@ public class ServerTestUtils {
                                                      port,
                                                      5,
                                                      10,
-                                                     10000);
+                                                     10000,
+                                                     null,
+                                                     1);
         socketServer.start();
         socketServer.awaitStartupCompletion();
         return socketServer;
@@ -155,7 +160,12 @@ public class ServerTestUtils {
                                                + ports.length + " given.");
         List<Node> nodes = new ArrayList<Node>();
         for(int i = 0; i < numberOfNodes; i++)
-            nodes.add(new Node(i, "localhost", ports[2 * i], ports[2 * i + 1], ImmutableList.of(i)));
+            nodes.add(new Node(i,
+                               "localhost",
+                               ports[3 * i],
+                               ports[3 * i + 1],
+                               ports[3 * i + 2],
+                               ImmutableList.of(i)));
         return new Cluster("test-cluster", nodes);
     }
 
@@ -169,20 +179,20 @@ public class ServerTestUtils {
         props.put("bdb.cache.size", 1 * 1024 * 1024);
         props.put("jmx.enable", "false");
         VoldemortConfig config = new VoldemortConfig(props);
-    
+
         // clean and reinit metadata dir.
         File tempDir = new File(config.getMetadataDirectory());
         tempDir.mkdirs();
-    
+
         File tempDir2 = new File(config.getDataDirectory());
         tempDir2.mkdirs();
-    
+
         // copy cluster.xml / stores.xml to temp metadata dir.
         FileUtils.copyFile(new File(clusterFile), new File(tempDir.getAbsolutePath()
                                                            + File.separatorChar + "cluster.xml"));
         FileUtils.copyFile(new File(storeFile), new File(tempDir.getAbsolutePath()
                                                          + File.separatorChar + "stores.xml"));
-    
+
         return config;
     }
 }

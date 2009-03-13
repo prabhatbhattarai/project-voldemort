@@ -23,13 +23,18 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
+import junit.framework.TestCase;
 import voldemort.client.RoutingTier;
 import voldemort.cluster.Cluster;
+import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.SerializerDefinition;
@@ -37,6 +42,7 @@ import voldemort.serialization.json.JsonReader;
 import voldemort.store.StorageEngineType;
 import voldemort.store.StoreDefinition;
 import voldemort.store.readonly.JsonStoreBuilder;
+import voldemort.utils.ClusterUtils;
 import voldemort.versioning.VectorClock;
 
 /**
@@ -279,4 +285,77 @@ public class TestUtils {
         return dataDir.getAbsolutePath();
     }
 
+    public static RoutingStrategy getRoutingStrategy(int[][] partitionMap, int numReplication) {
+        return new ConsistentRoutingStrategy(createNodes(partitionMap), numReplication);
+    }
+
+    public static Collection<Node> createNodes(int[][] partitionMap) {
+        ArrayList<Node> nodes = new ArrayList<Node>(partitionMap.length);
+        ArrayList<Integer> partitionList = new ArrayList<Integer>();
+
+        for(int i = 0; i < partitionMap.length; i++) {
+            partitionList.clear();
+            for(int p = 0; p < partitionMap[i].length; p++) {
+                partitionList.add(partitionMap[i][p]);
+            }
+            nodes.add(new Node(i, "localhost", 8880 + i, 6666 + i, 7777 + i, partitionList));
+        }
+
+        return nodes;
+    }
+
+    public static void checkClusterMatch(Cluster A, Cluster B) {
+        System.out.println("cluster A:" + ClusterUtils.GetClusterAsString(A));
+        System.out.println("cluster B:" + ClusterUtils.GetClusterAsString(B));
+
+        TestCase.assertEquals("num nodes do not match.", A.getNodes().size(), B.getNodes().size());
+
+        ArrayList<Node> nodeAList = new ArrayList<Node>(A.getNodes());
+
+        for(int i = 0; i < A.getNodes().size(); i++) {
+            Node nodeA = nodeAList.get(i);
+            Node nodeB = B.getNodeById(nodeA.getId());
+            TestCase.assertEquals("NodeId do not match", nodeA.getId(), nodeB.getId());
+            TestCase.assertEquals("num partitions for Node:" + nodeA.getId() + " Do not match",
+                                  nodeA.getNumberOfPartitions(),
+                                  nodeB.getNumberOfPartitions());
+
+            for(int j = 0; j < nodeA.getNumberOfPartitions(); j++) {
+                TestCase.assertEquals("partitionList do not match",
+                                      nodeA.getPartitionIds(),
+                                      nodeB.getPartitionIds());
+            }
+        }
+
+    }
+
+    public static int getPartitionsDiff(Cluster orig, Cluster updated) {
+        int diffPartition = 0;
+
+        System.out.println("cluster A:" + ClusterUtils.GetClusterAsString(orig));
+        System.out.println("cluster B:" + ClusterUtils.GetClusterAsString(updated));
+
+        ArrayList<Node> nodeAList = new ArrayList<Node>(orig.getNodes());
+
+        for(int i = 0; i < orig.getNodes().size(); i++) {
+            Node nodeA = nodeAList.get(i);
+            Node nodeB;
+            try {
+                nodeB = updated.getNodeById(nodeA.getId());
+            } catch(VoldemortException e) {
+                // add the partition in this node
+                diffPartition += nodeA.getNumberOfPartitions();
+                continue;
+            }
+
+            SortedSet<Integer> BpartitonSet = new TreeSet<Integer>(nodeB.getPartitionIds());
+            for(int p: nodeA.getPartitionIds()) {
+                if(!BpartitonSet.contains(new Integer(p))) {
+                    diffPartition++;
+                }
+
+            }
+        }
+        return diffPartition;
+    }
 }

@@ -111,4 +111,25 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
         return tags;
     }
 
+    public List<Integer> getPartitionList(byte[] key) {
+        List<Integer> preferenceList = new ArrayList<Integer>(numResults);
+        int index = Math.abs(hash.hash(key)) % this.partitionToNode.length;
+        for(int i = 0; i < partitionToNode.length; i++) {
+            // add this one if we haven't already
+            if(!preferenceList.contains(index))
+                preferenceList.add(index);
+
+            // if we have enough, go home
+            if(preferenceList.size() >= numResults)
+                return preferenceList;
+
+            // move to next clockwise slot on the ring
+            index = (index + 1) % partitionToNode.length;
+        }
+        return preferenceList;
+    }
+
+    public HashFunction getHashFunction() {
+        return hash;
+    }
 }

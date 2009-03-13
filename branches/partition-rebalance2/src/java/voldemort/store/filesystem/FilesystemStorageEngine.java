@@ -25,7 +25,9 @@ import java.util.NoSuchElementException;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
 import voldemort.store.StorageEngine;
@@ -42,6 +44,8 @@ public class FilesystemStorageEngine implements StorageEngine<String, String> {
 
     private final String name;
     private final File directory;
+
+    private static final Logger logger = Logger.getLogger(FilesystemStorageEngine.class);
 
     public FilesystemStorageEngine(String name, String directory) {
         this.name = name;
@@ -111,19 +115,25 @@ public class FilesystemStorageEngine implements StorageEngine<String, String> {
     }
 
     public synchronized void put(String key, Versioned<String> value) throws VoldemortException {
+        ArrayList<String> deleteList = new ArrayList<String>();
         StoreUtils.assertValidKey(key);
         // Check for obsolete version
         File[] files = this.directory.listFiles();
         for(File file: files) {
             if(file.getName().startsWith(key)) {
+                // TODO MED: emacs garbage files ~ etc.
                 VectorClock clock = getVersion(file);
                 if(clock.compare(value.getVersion()) == Occured.AFTER)
                     throw new ObsoleteVersionException("A successor version to this exists.");
+                else if(clock.compare(value.getVersion()) == Occured.BEFORE) {
+                    // Add the file to deleteList
+                    deleteList.add(file.getAbsolutePath());
+                }
             }
         }
 
         VectorClock clock = (VectorClock) value.getVersion();
-        String path = this.directory.getAbsolutePath() + File.separator + key + '-'
+        String path = this.directory.getAbsolutePath() + File.separator + key + ".version-"
                       + new String(Hex.encodeHex(clock.toBytes()));
         File newFile = new File(path);
         try {
@@ -132,6 +142,15 @@ public class FilesystemStorageEngine implements StorageEngine<String, String> {
             FileUtils.writeStringToFile(newFile, value.getValue(), "UTF-8");
         } catch(IOException e) {
             throw new VoldemortException(e);
+        }
+
+        // if succceded remove the old value Object.
+        for(String file: deleteList) {
+            try {
+                FileDeleteStrategy.FORCE.delete(new File(file));
+            } catch(IOException e) {
+                logger.warn("Failed to Delete File:" + file);
+            }
         }
     }
 

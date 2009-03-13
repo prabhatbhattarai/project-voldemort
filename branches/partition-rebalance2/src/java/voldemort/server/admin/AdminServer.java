@@ -14,7 +14,7 @@
  * the License.
  */
 
-package voldemort.server.socket;
+package voldemort.server.admin;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -27,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -40,30 +41,31 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
-import voldemort.store.Store;
+import voldemort.server.VoldemortService;
+import voldemort.store.StorageEngine;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.utils.ByteArray;
 
 /**
- * A simple socket-based server for serving voldemort requests
+ * A simple socket-based server for serving voldemort Admin Requests
  * 
- * @author jay
+ * @author bbansal
  * 
  */
-public class SocketServer extends Thread {
+public class AdminServer extends Thread {
 
-    private static final Logger logger = Logger.getLogger(SocketServer.class.getName());
+    private static final Logger logger = Logger.getLogger(AdminServer.class.getName());
 
     private final ExecutorService threadPool;
     private final Random random = new Random();
     private final int port;
-    private final ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap;
+    private final ConcurrentMap<String, ? extends StorageEngine<ByteArray, byte[]>> storeMap;
     private final ThreadGroup threadGroup;
     private final CountDownLatch isStarted = new CountDownLatch(1);
-    private final int socketBufferSize;
-    private ServerSocket serverSocket = null;
     private final MetadataStore metadataStore;
+    private final List<VoldemortService> serviceList;
     private final int nodeId;
+    private ServerSocket adminSocket = null;
 
     private final ThreadFactory threadFactory = new ThreadFactory() {
 
@@ -82,7 +84,8 @@ public class SocketServer extends Thread {
             logger.error("Too many open connections, " + executor.getActiveCount() + " of "
                          + executor.getLargestPoolSize()
                          + " threads in use, denying connection from "
-                         + session.getSocket().getRemoteSocketAddress());
+                         + session.getSocket().getRemoteSocketAddress() + ":"
+                         + session.getSocket().getPort());
             try {
                 session.getSocket().close();
             } catch(IOException e) {
@@ -91,16 +94,15 @@ public class SocketServer extends Thread {
         }
     };
 
-    public SocketServer(ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap,
-                        int port,
-                        int defaultThreads,
-                        int maxThreads,
-                        int socketBufferSize,
-                        MetadataStore metadataStore,
-                        int nodeId) {
+    public AdminServer(ConcurrentMap<String, ? extends StorageEngine<ByteArray, byte[]>> storeMap,
+                       int port,
+                       int defaultThreads,
+                       int maxThreads,
+                       MetadataStore metadataStore,
+                       List<VoldemortService> serviceList,
+                       int nodeId) {
         this.port = port;
-        this.socketBufferSize = socketBufferSize;
-        this.threadGroup = new ThreadGroup("voldemort-socket-server");
+        this.threadGroup = new ThreadGroup("VoldemortRawSocketHandler");
         this.storeMap = storeMap;
         this.threadPool = new ThreadPoolExecutor(defaultThreads,
                                                  maxThreads,
@@ -110,6 +112,7 @@ public class SocketServer extends Thread {
                                                  threadFactory,
                                                  rejectedExecutionHandler);
         this.metadataStore = metadataStore;
+        this.serviceList = serviceList;
         this.nodeId = nodeId;
     }
 
@@ -117,13 +120,14 @@ public class SocketServer extends Thread {
     public void run() {
         logger.info("Starting voldemort socket server on port " + port + ".");
         try {
-            serverSocket = new ServerSocket();
-            serverSocket.bind(new InetSocketAddress(port));
-            serverSocket.setReceiveBufferSize(this.socketBufferSize);
+            adminSocket = new ServerSocket();
+            adminSocket.bind(new InetSocketAddress(port));
             isStarted.countDown();
-            while(!isInterrupted() && !serverSocket.isClosed()) {
-                final Socket socket = serverSocket.accept();
-                configureSocket(socket);
+            while(!isInterrupted() && !adminSocket.isClosed()) {
+                final Socket socket = adminSocket.accept();
+                socket.setReceiveBufferSize(10000);
+                socket.setSendBufferSize(10000);
+                socket.setTcpNoDelay(true);
                 this.threadPool.execute(new SocketServerSession(socket));
             }
         } catch(BindException e) {
@@ -136,9 +140,9 @@ public class SocketServer extends Thread {
         } catch(IOException e) {
             throw new VoldemortException(e);
         } finally {
-            if(serverSocket != null) {
+            if(adminSocket != null) {
                 try {
-                    serverSocket.close();
+                    adminSocket.close();
                 } catch(IOException e) {
                     logger.warn("Error while shutting down server.", e);
                 }
@@ -147,19 +151,8 @@ public class SocketServer extends Thread {
         }
     }
 
-    private void configureSocket(Socket socket) throws SocketException {
-        socket.setTcpNoDelay(true);
-        socket.setSendBufferSize(this.socketBufferSize);
-        if(socket.getReceiveBufferSize() != this.socketBufferSize)
-            logger.debug("Requested socket receive buffer size was " + this.socketBufferSize
-                         + " bytes but actual size is " + socket.getReceiveBufferSize() + " bytes.");
-        if(socket.getSendBufferSize() != this.socketBufferSize)
-            logger.debug("Requested socket send buffer size was " + this.socketBufferSize
-                         + " bytes but actual size is " + socket.getSendBufferSize() + " bytes.");
-    }
-
     public void shutdown() {
-        logger.info("Shutting down voldemort socket server on port " + port + ".");
+        logger.info("Shutting down voldemort Admin server on port " + port + ".");
         threadGroup.interrupt();
         interrupt();
         threadPool.shutdownNow();
@@ -169,8 +162,8 @@ public class SocketServer extends Thread {
             logger.warn("Interrupted while waiting for tasks to complete: ", e);
         }
         try {
-            if(!serverSocket.isClosed())
-                serverSocket.close();
+            if(!adminSocket.isClosed())
+                adminSocket.close();
         } catch(IOException e) {
             logger.warn("Exception while closing server socket: ", e);
         }
@@ -207,14 +200,14 @@ public class SocketServer extends Thread {
         public void run() {
             try {
                 logger.info("Client " + socket.getRemoteSocketAddress() + " connected.");
-                StreamStoreRequestHandler handler = new StreamStoreRequestHandler(storeMap,
-                                                                                  new DataInputStream(new BufferedInputStream(socket.getInputStream(),
-                                                                                                                              1000)),
-                                                                                  new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),
+                AdminServiceRequestHandler handler = new AdminServiceRequestHandler(storeMap,
+                                                                                    new DataInputStream(new BufferedInputStream(socket.getInputStream(),
                                                                                                                                 1000)),
-                                                                                  socketBufferSize,
-                                                                                  metadataStore,
-                                                                                  nodeId);
+                                                                                    new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),
+                                                                                                                                  1000)),
+                                                                                    metadataStore,
+                                                                                    serviceList,
+                                                                                    nodeId);
                 while(!Thread.currentThread().isInterrupted()) {
                     handler.handleRequest();
                 }
