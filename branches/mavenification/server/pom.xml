@@ -11,11 +11,6 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>voldemort-annotations</artifactId>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
 			<artifactId>voldemort-client</artifactId>
 			<scope>compile</scope>
 		</dependency>
