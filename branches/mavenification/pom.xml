@@ -5,7 +5,7 @@
 	<artifactId>voldemort</artifactId>
 	<packaging>pom</packaging>
 	<name>Project Voldemort</name>
-	<version>300-MAVEN-SNAPSHOT</version>
+	<version>0.5-MAVEN-SNAPSHOT</version>
 	<description>Voldemort is a distributed key-value storage system.</description>
 	<url>http://project-voldemort.com/</url>
 	<scm>
@@ -220,9 +220,9 @@
 			<layout>default</layout>
 		</repository>
 		<repository>
-			<id>oracleReleases</id>
-			<name>Oracle Released Java Packages</name>
-			<url>http://download.oracle.com/maven</url>
+			<id>therudolphs.org</id>
+			<name>Gary Rudolph Repository</name>
+			<url>http://www.therudolphs.org/repo</url>
 			<layout>default</layout>
 		</repository>
 	</repositories>
