@@ -70,7 +70,7 @@ public class VoldemortServer extends AbstractService {
     public static enum SERVER_STATE {
         NORMAL_STATE,
         REBALANCING_STATE,
-    };
+    }
 
     public VoldemortServer(VoldemortConfig config) {
         super("voldemort-server");
