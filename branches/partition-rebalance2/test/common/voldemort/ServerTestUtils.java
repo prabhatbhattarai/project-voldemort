@@ -151,12 +151,12 @@ public class ServerTestUtils {
     }
 
     public static Cluster getLocalCluster(int numberOfNodes) {
-        return getLocalCluster(numberOfNodes, findFreePorts(2 * numberOfNodes));
+        return getLocalCluster(numberOfNodes, findFreePorts(3 * numberOfNodes));
     }
 
     public static Cluster getLocalCluster(int numberOfNodes, int[] ports) {
-        if(2 * numberOfNodes != ports.length)
-            throw new IllegalArgumentException(2 * numberOfNodes + " ports required but only "
+        if(3 * numberOfNodes != ports.length)
+            throw new IllegalArgumentException(3 * numberOfNodes + " ports required but only "
                                                + ports.length + " given.");
         List<Node> nodes = new ArrayList<Node>();
         for(int i = 0; i < numberOfNodes; i++)

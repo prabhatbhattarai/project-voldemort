@@ -75,14 +75,7 @@ public class StreamStoreRequestHandler {
         this.storeMap = storeMap;
         this.metadataStore = metadataStore;
         this.nodeId = nodeId;
-        updatedCluster = metadataStore.getCluster();
-        storeDefs = metadataStore.getStores();
-        adminClient = new AdminClient(updatedCluster.getNodeById(nodeId),
-                                      metadataStore,
-                                      new SocketPool(10,
-                                                     10 * updatedCluster.getNumberOfNodes(),
-                                                     2000,
-                                                     socketBufferSize));
+
         if(null != metadataStore) {
             List<Versioned<byte[]>> values = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
                                                                                   "UTF-8"));
@@ -90,6 +83,18 @@ public class StreamStoreRequestHandler {
                 String stateString = new String(values.get(0).getValue());
                 this.state = SERVER_STATE.valueOf(stateString);
             }
+            storeDefs = metadataStore.getStores();
+            updatedCluster = metadataStore.getCluster();
+            adminClient = new AdminClient(updatedCluster.getNodeById(nodeId),
+                                          metadataStore,
+                                          new SocketPool(10,
+                                                         10 * updatedCluster.getNumberOfNodes(),
+                                                         2000,
+                                                         socketBufferSize));
+        } else {
+            updatedCluster = null;
+            adminClient = null;
+            storeDefs = null;
         }
 
         if(SERVER_STATE.REBALANCING_STATE.equals(state)) {
@@ -192,6 +197,9 @@ public class StreamStoreRequestHandler {
      */
     private List<Versioned<byte[]>> doGetRebalancingState(Store<ByteArray, byte[]> store,
                                                           ByteArray key) {
+        if(null == metadataStore) {
+            throw new VoldemortException("doGetRebalancingStore needs a non null MetaDataStore.");
+        }
         int repFactor = getReplicationFactor(store.getName());
         List<Node> originalNodeList = new ConsistentRoutingStrategy(oldCluster.getNodes(),
                                                                     repFactor).routeRequest(key.get());
