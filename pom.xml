@@ -15,6 +15,7 @@
 	<modules>
 		<module>client</module>
 		<module>server</module>
+		<module>test</module>
 	</modules>
 	<build>
 		<defaultGoal>package</defaultGoal>
@@ -209,6 +210,12 @@
 				<artifactId>commons-lang</artifactId>
 				<version>2.1</version>
 				<scope>compile</scope>
+			</dependency>
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>4.1</version>
+				<scope>test</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
