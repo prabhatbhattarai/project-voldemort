@@ -53,7 +53,6 @@ public class MysqlBuildPerformanceTest {
         final Store<ByteArray, byte[]> store = new MysqlStorageConfiguration(new VoldemortConfig(new Props(new File(serverPropsFile)))).getStore(storeName);
 
         final AtomicInteger obsoletes = new AtomicInteger(0);
-        final AtomicInteger nullResults = new AtomicInteger(0);
 
         Path jsonFilePath = new Path(jsonDataFile);
         FileStatus jsonFileStatus = jsonFilePath.getFileSystem(new Configuration())
@@ -66,6 +65,7 @@ public class MysqlBuildPerformanceTest {
 
         PerformanceTest readWriteTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int index) throws Exception {
                 try {
 
@@ -74,7 +74,7 @@ public class MysqlBuildPerformanceTest {
 
                     reader.next(key, value);
                     store.put(new ByteArray(ByteUtils.copy(key.get(), 0, key.getSize())),
-                              new Versioned(ByteUtils.copy(value.get(), 0, value.getSize())));
+                              Versioned.of(ByteUtils.copy(value.get(), 0, value.getSize())));
                 } catch(ObsoleteVersionException e) {
                     obsoletes.incrementAndGet();
                 }

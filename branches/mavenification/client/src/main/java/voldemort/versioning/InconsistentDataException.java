@@ -35,8 +35,10 @@ public class InconsistentDataException extends VoldemortException {
 
     public InconsistentDataException(String message, List<?> versions) {
         super(message);
+        this.versions = versions;
     }
 
+    @Override
     public short getId() {
         return 8;
     }

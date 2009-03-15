@@ -21,12 +21,12 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
-import org.apache.commons.io.FileUtils;
 
 import voldemort.client.RoutingTier;
 import voldemort.cluster.Cluster;
@@ -34,11 +34,9 @@ import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.SerializerDefinition;
 import voldemort.serialization.json.JsonReader;
-import voldemort.server.VoldemortConfig;
 import voldemort.store.StorageEngineType;
 import voldemort.store.StoreDefinition;
 import voldemort.store.readonly.JsonStoreBuilder;
-import voldemort.utils.Props;
 import voldemort.versioning.VectorClock;
 
 /**
@@ -52,7 +50,8 @@ public class TestUtils {
     public static final String DIGITS = "0123456789";
     public static final String LETTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";
     public static final String CHARACTERS = LETTERS + DIGITS + "~!@#$%^&*()____+-=[];',,,./>?:{}";
-    private static final Random random = new Random(19873482374L);
+    public static final Random SEEDED_RANDOM = new Random(19873482374L);
+    public static final Random UNSEEDED_RANDOM = new Random();
 
     /**
      * Get a vector clock with events on the sequence of nodes given So
@@ -107,7 +106,7 @@ public class TestUtils {
     /**
      * Create a string with some random letters
      * 
-     * @param random The Random number generator to use
+     * @param SEEDED_RANDOM The Random number generator to use
      * @param length The length of the string to create
      * @return The string
      */
@@ -126,14 +125,52 @@ public class TestUtils {
     public static String randomString(String sampler, int length) {
         StringBuilder builder = new StringBuilder(length);
         for(int i = 0; i < length; i++)
-            builder.append(sampler.charAt(random.nextInt(sampler.length())));
+            builder.append(sampler.charAt(SEEDED_RANDOM.nextInt(sampler.length())));
         return builder.toString();
     }
 
+    /**
+     * Generate an array of random bytes
+     * 
+     * @param length
+     * @return
+     */
     public static byte[] randomBytes(int length) {
         byte[] bytes = new byte[length];
-        random.nextBytes(bytes);
+        SEEDED_RANDOM.nextBytes(bytes);
         return bytes;
+    }
+
+    /**
+     * Return an array of length count containing random integers in the range
+     * (0, max) generated off the test rng.
+     * 
+     * @param max The bound on the random number size
+     * @param count The number of integers to generate
+     * @return The array of integers
+     */
+    public static int[] randomInts(int max, int count) {
+        int[] vals = new int[count];
+        for(int i = 0; i < count; i++)
+            vals[i] = SEEDED_RANDOM.nextInt(max);
+        return vals;
+    }
+
+    /**
+     * Weirdly java doesn't seem to have Arrays.shuffle(), this terrible hack
+     * does that.
+     * 
+     * @return A shuffled copy of the input
+     */
+    public static int[] shuffle(int[] input) {
+        List<Integer> vals = new ArrayList<Integer>(input.length);
+        for(int i = 0; i < input.length; i++)
+            vals.add(input[i]);
+        Collections.shuffle(vals, SEEDED_RANDOM);
+        int[] copy = new int[input.length];
+        for(int i = 0; i < input.length; i++)
+            copy[i] = vals.get(i);
+        return copy;
     }
 
     /**
@@ -157,16 +194,38 @@ public class TestUtils {
         return copy[index];
     }
 
-    public static File getTempDirectory() {
-        String tempDir = System.getProperty("java.io.tmpdir") + File.separatorChar
-                         + (Math.abs(random.nextInt()) % 1000000);
-        File temp = new File(tempDir);
+    /**
+     * Create a temporary directory in the directory given by java.io.tmpdir
+     * 
+     * @return The directory created.
+     */
+    public static File createTempDir() {
+        return createTempDir(new File(System.getProperty("java.io.tmpdir")));
+    }
+
+    /**
+     * Create a temporary directory that is a child of the given directory
+     * 
+     * @param parent The parent directory
+     * @return The temporary directory
+     */
+    public static File createTempDir(File parent) {
+        File temp = new File(parent,
+                             Integer.toString(Math.abs(UNSEEDED_RANDOM.nextInt()) % 1000000));
+        temp.delete();
         temp.mkdir();
         temp.deleteOnExit();
         return temp;
     }
 
-    public static String str(String s) {
+    /**
+     * Wrap the given string in quotation marks. This is slightly more readable
+     * then the java inline quotes that require escaping.
+     * 
+     * @param s The string to wrap in quotes
+     * @return The string
+     */
+    public static String quote(String s) {
         return "\"" + s + "\"";
     }
 
@@ -220,33 +279,6 @@ public class TestUtils {
         storeBuilder.build();
 
         return dataDir.getAbsolutePath();
-    }
-
-    public static VoldemortConfig createServerConfig(int nodeId,
-                                                     String baseDir,
-                                                     String clusterFile,
-                                                     String storeFile) throws IOException {
-        Props props = new Props();
-        props.put("node.id", nodeId);
-        props.put("voldemort.home", baseDir + "/node-" + nodeId);
-        props.put("bdb.cache.size", 1 * 1024 * 1024);
-        props.put("jmx.enable", "false");
-        VoldemortConfig config = new VoldemortConfig(props);
-
-        // clean and reinit metadata dir.
-        File tempDir = new File(config.getMetadataDirectory());
-        tempDir.mkdirs();
-
-        File tempDir2 = new File(config.getDataDirectory());
-        tempDir2.mkdirs();
-
-        // copy cluster.xml / stores.xml to temp metadata dir.
-        FileUtils.copyFile(new File(clusterFile), new File(tempDir.getAbsolutePath()
-                                                           + File.separatorChar + "cluster.xml"));
-        FileUtils.copyFile(new File(storeFile), new File(tempDir.getAbsolutePath()
-                                                         + File.separatorChar + "stores.xml"));
-
-        return config;
     }
 
 }

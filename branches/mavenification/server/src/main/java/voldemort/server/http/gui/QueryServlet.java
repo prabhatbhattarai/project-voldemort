@@ -37,9 +37,14 @@ import com.google.common.collect.Maps;
 /**
  * Add client for queries, do data parsing
  * 
+ * Note that this is still work-in-progress, see:
+ * 
+ * http://code.google.com/p/project-voldemort/issues/detail?id=61
+ * 
  * @author jay
  * 
  */
+@SuppressWarnings("all")
 public class QueryServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1;
@@ -62,7 +67,7 @@ public class QueryServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
         super.doGet(req, resp);
-        Map m = Maps.newHashMap();
+        Map<String, Object> m = Maps.newHashMap();
         engine.render("query.vm", m, resp.getOutputStream());
     }
 

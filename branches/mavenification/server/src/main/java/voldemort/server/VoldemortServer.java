@@ -66,8 +66,7 @@ public class VoldemortServer extends AbstractService {
         super("voldemort-server");
         this.voldemortConfig = config;
         this.storeMap = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
-        this.metadataStore = new MetadataStore(new File(voldemortConfig.getMetadataDirectory()),
-                                               storeMap);
+        this.metadataStore = new MetadataStore(new File(voldemortConfig.getMetadataDirectory()));
         this.cluster = this.metadataStore.getCluster();
         this.identityNode = this.cluster.getNodeById(voldemortConfig.getNodeId());
         this.services = createServices();
@@ -80,8 +79,7 @@ public class VoldemortServer extends AbstractService {
         this.identityNode = cluster.getNodeById(voldemortConfig.getNodeId());
         this.storeMap = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
         this.services = createServices();
-        this.metadataStore = new MetadataStore(new File(voldemortConfig.getMetadataDirectory()),
-                                               storeMap);
+        this.metadataStore = new MetadataStore(new File(voldemortConfig.getMetadataDirectory()));
     }
 
     private List<VoldemortService> createServices() {
@@ -115,6 +113,7 @@ public class VoldemortServer extends AbstractService {
         return services;
     }
 
+    @Override
     protected void startInner() throws VoldemortException {
         logger.info("Starting all services: ");
         long start = System.currentTimeMillis();
@@ -125,6 +124,7 @@ public class VoldemortServer extends AbstractService {
         // add a shutdown hook to stop the server
         Runtime.getRuntime().addShutdownHook(new Thread() {
 
+            @Override
             public void run() {
                 if(VoldemortServer.this.isStarted())
                     VoldemortServer.this.stop();
@@ -140,6 +140,7 @@ public class VoldemortServer extends AbstractService {
      * 
      * @throws VoldemortException
      */
+    @Override
     protected void stopInner() throws VoldemortException {
         List<VoldemortException> exceptions = new ArrayList<VoldemortException>();
         logger.info("Stopping services:");

@@ -16,7 +16,6 @@
 
 package voldemort.performance;
 
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -28,6 +27,7 @@ import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
+import org.apache.commons.httpclient.params.HttpMethodParams;
 
 import voldemort.server.http.HttpService;
 import voldemort.server.socket.SocketServer;
@@ -54,6 +54,7 @@ public class RemoteStoreComparisonTest {
         final Store<byte[], byte[]> memStore = new InMemoryStorageEngine<byte[], byte[]>("test");
         PerformanceTest memWriteTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int i) {
                 byte[] key = String.valueOf(i).getBytes();
                 memStore.put(key, new Versioned<byte[]>(key));
@@ -67,9 +68,10 @@ public class RemoteStoreComparisonTest {
 
         PerformanceTest memReadTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int i) {
                 try {
-                    List<Versioned<byte[]>> s = memStore.get(String.valueOf(i).getBytes());
+                    memStore.get(String.valueOf(i).getBytes());
                 } catch(Exception e) {
                     System.out.println("Failure on i = " + i);
                     e.printStackTrace();
@@ -94,6 +96,7 @@ public class RemoteStoreComparisonTest {
 
         PerformanceTest socketWriteTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int i) {
                 byte[] bytes = String.valueOf(i).getBytes();
                 ByteArray key = new ByteArray(bytes);
@@ -108,9 +111,10 @@ public class RemoteStoreComparisonTest {
 
         PerformanceTest socketReadTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int i) {
                 try {
-                    List<Versioned<byte[]>> s = socketStore.get(ByteArray.valueOf(String.valueOf(i)));
+                    socketStore.get(ByteArray.valueOf(String.valueOf(i)));
                 } catch(Exception e) {
                     System.out.println("Failure on i = " + i);
                     e.printStackTrace();
@@ -133,7 +137,7 @@ public class RemoteStoreComparisonTest {
         httpService.start();
         HttpClient httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
         HttpClientParams clientParams = httpClient.getParams();
-        clientParams.setParameter(HttpClientParams.RETRY_HANDLER,
+        clientParams.setParameter(HttpMethodParams.RETRY_HANDLER,
                                   new DefaultHttpMethodRetryHandler(0, false));
         clientParams.setCookiePolicy(CookiePolicy.IGNORE_COOKIES);
         clientParams.setParameter("http.useragent", "test-agent");
@@ -151,6 +155,7 @@ public class RemoteStoreComparisonTest {
 
         PerformanceTest httpWriteTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int i) {
                 byte[] key = String.valueOf(i).getBytes();
                 httpStore.put(new ByteArray(key), new Versioned<byte[]>(key));
@@ -164,9 +169,9 @@ public class RemoteStoreComparisonTest {
 
         PerformanceTest httpReadTest = new PerformanceTest() {
 
+            @Override
             public void doOperation(int i) {
-                List<Versioned<byte[]>> s = httpStore.get(new ByteArray(String.valueOf(i)
-                                                                              .getBytes()));
+                httpStore.get(new ByteArray(String.valueOf(i).getBytes()));
             }
         };
         System.out.println("Performing HTTP read test.");

@@ -27,6 +27,7 @@ import voldemort.serialization.Serializer;
 import voldemort.server.VoldemortConfig;
 import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
+import voldemort.store.StoreUtils;
 import voldemort.store.readonly.RandomAccessFileStorageConfiguration;
 import voldemort.utils.ByteArray;
 import voldemort.utils.Props;
@@ -70,13 +71,15 @@ public class ReadOnlyStorePerformanceTest {
             Utils.croak("Store should be present in StoreList");
         }
 
-        final Serializer keySerializer = new DefaultSerializerFactory().getSerializer(storeDefs.get(storeIndex)
-                                                                                               .getKeySerializer());
+        final Serializer<Integer> keySerializer = StoreUtils.unsafeGetSerializer(new DefaultSerializerFactory(),
+                                                                                 storeDefs.get(storeIndex)
+                                                                                          .getKeySerializer());
 
         PerformanceTest readWriteTest = new PerformanceTest() {
 
-            private final int MaxMemberID = (int) (35 * 1000 * 1000);
+            private final int MaxMemberID = (35 * 1000 * 1000);
 
+            @Override
             public void doOperation(int index) throws Exception {
                 try {
                     Integer memberId = new Integer((int) (Math.random() * MaxMemberID));

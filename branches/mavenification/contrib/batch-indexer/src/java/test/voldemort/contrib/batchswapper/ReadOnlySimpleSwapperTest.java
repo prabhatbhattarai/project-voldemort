@@ -27,6 +27,7 @@ import junit.framework.TestCase;
 import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
+import voldemort.ServerTestUtils;
 import voldemort.TestUtils;
 import voldemort.cluster.Cluster;
 import voldemort.contrib.batchswapper.ReadOnlyBatchIndexSwapper;
@@ -36,17 +37,17 @@ import voldemort.serialization.SerializerDefinition;
 import voldemort.server.VoldemortConfig;
 import voldemort.server.VoldemortServer;
 import voldemort.store.Store;
+import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
 import voldemort.utils.Props;
 import voldemort.xml.ClusterMapper;
 
-public class TestReadOnlySimpleSwapper extends TestCase {
+public class ReadOnlySimpleSwapperTest extends TestCase {
 
-    private static final int TEST_SIZE = 500;
-    private static final String baseDir = TestUtils.getTempDirectory().getAbsolutePath();
+    private static final String baseDir = TestUtils.createTempDir().getAbsolutePath();
 
-    private static final String clusterFile = "contrib/test/common/config/two-node-cluster.xml";
-    private static final String storerFile = "contrib/test/common/config/testSwapStore.xml";
+    private static final String clusterFile = "contrib/common/config/two-node-cluster.xml";
+    private static final String storerFile = "contrib/common/config/testSwapStore.xml";
     private static final String storeName = "swapTestStore";
 
     VoldemortServer server1;
@@ -57,27 +58,24 @@ public class TestReadOnlySimpleSwapper extends TestCase {
         // clean baseDir to be sure
         FileDeleteStrategy.FORCE.delete(new File(baseDir));
 
-        // First make the readOnlyIndex and copy the index to start Read-Only
-        // store cleanly
         String indexDir = makeReadOnlyIndex(1, 1000);
+        server1 = startServer(0, indexDir);
+        server2 = startServer(1, indexDir);
+    }
 
-        VoldemortConfig config = TestUtils.createServerConfig(0, baseDir, clusterFile, storerFile);
-        server1 = new VoldemortServer(config);
+    private VoldemortServer startServer(int nodeId, String indexDir) throws Exception {
+        VoldemortConfig config = ServerTestUtils.createServerConfig(nodeId,
+                                                                    baseDir,
+                                                                    clusterFile,
+                                                                    storerFile);
+        VoldemortServer server = new VoldemortServer(config);
         // copy read-only index before starting
-        FileUtils.copyFile(new File(indexDir, "0.index"),
+        FileUtils.copyFile(new File(indexDir, nodeId + ".index"),
                            new File(config.getReadOnlyDataStorageDirectory(), storeName + ".index"));
-        FileUtils.copyFile(new File(indexDir, "0.data"),
+        FileUtils.copyFile(new File(indexDir, nodeId + ".data"),
                            new File(config.getReadOnlyDataStorageDirectory(), storeName + ".data"));
-        server1.start();
-
-        config = TestUtils.createServerConfig(1, baseDir, clusterFile, storerFile);
-        server2 = new VoldemortServer(config);
-        // copy read-only index before starting
-        FileUtils.copyFile(new File(indexDir, "1.index"),
-                           new File(config.getReadOnlyDataStorageDirectory(), storeName + ".index"));
-        FileUtils.copyFile(new File(indexDir, "1.data"),
-                           new File(config.getReadOnlyDataStorageDirectory(), storeName + ".data"));
-        server2.start();
+        server.start();
+        return server;
     }
 
     @Override
@@ -94,8 +92,8 @@ public class TestReadOnlySimpleSwapper extends TestCase {
             entryMap.put("key" + i, "value-" + i);
         }
 
-        Cluster cluster = new ClusterMapper().readCluster(new FileReader(new File("contrib/test/common/config/two-node-cluster.xml")));
-        return TestUtils.createReadOnlyIndex(cluster, entryMap, baseDir);
+        Cluster cluster = new ClusterMapper().readCluster(new FileReader(new File("contrib/common/config/two-node-cluster.xml")));
+        return ReadOnlySwapperTestUtils.createReadOnlyIndex(cluster, entryMap, baseDir);
     }
 
     public void testswap() throws Throwable {
@@ -104,18 +102,24 @@ public class TestReadOnlySimpleSwapper extends TestCase {
         Store<ByteArray, byte[]> store2 = server2.getStoreMap().get(storeName);
 
         SerializerDefinition serDef = new SerializerDefinition("json", "'string'");
-        Serializer<Object> serializer = (Serializer<Object>) new DefaultSerializerFactory().getSerializer(serDef);
+        Serializer<Object> serializer = StoreUtils.unsafeGetSerializer(new DefaultSerializerFactory(),
+                                                                       serDef);
 
         // initial keys are from 1 to 1000
         for(int i = 1; i < 1000; i++) {
 
             ByteArray key = new ByteArray(serializer.toBytes("key" + i));
-            byte[] value = serializer.toBytes("value" + i);
+            byte[] value = serializer.toBytes("value-" + i);
 
-            System.out.println("checking key:" + i);
             assertEquals("either store1 or store2 will have the key:'key-" + i + "'",
                          true,
                          store1.get(key).size() > 0 || store2.get(key).size() > 0);
+            assertEquals("value should match",
+                         new String(value),
+                         new String((store1.get(key).size() > 0) ? store1.get(key)
+                                                                         .get(0)
+                                                                         .getValue()
+                                                                : store2.get(key).get(0).getValue()));
         }
 
         // lets create new index files
@@ -157,17 +161,22 @@ public class TestReadOnlySimpleSwapper extends TestCase {
         // check that only new keys can be seen
         for(int i = 1; i < 1000; i++) {
             ByteArray key = new ByteArray(serializer.toBytes("key" + i));
-            byte[] value = serializer.toBytes("value" + i);
             assertEquals("store 1 get for key:" + i + " should be empty", 0, store1.get(key).size());
             assertEquals("store 2 get for key:" + i + " should be empty", 0, store2.get(key).size());
         }
 
         for(int i = 2000; i < 3000; i++) {
             ByteArray key = new ByteArray(serializer.toBytes("key" + i));
-            byte[] value = serializer.toBytes("value" + i);
+            byte[] value = serializer.toBytes("value-" + i);
             assertEquals("either store1 or store2 will have the key:'key-" + i + "'",
                          true,
                          store1.get(key).size() > 0 || store2.get(key).size() > 0);
+            assertEquals("value should match",
+                         new String(value),
+                         new String((store1.get(key).size() > 0) ? store1.get(key)
+                                                                         .get(0)
+                                                                         .getValue()
+                                                                : store2.get(key).get(0).getValue()));
         }
 
     }

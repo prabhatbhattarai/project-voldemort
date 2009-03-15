@@ -40,7 +40,6 @@ import org.apache.log4j.Logger;
 import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxOperation;
-import voldemort.store.Entry;
 import voldemort.store.PersistenceFailureException;
 import voldemort.store.StorageEngine;
 import voldemort.store.StoreUtils;
@@ -72,9 +71,9 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
         }
     };
 
-    public static int KEY_HASH_SIZE = 16;
-    public static int POSITION_SIZE = 8;
-    public static int INDEX_ENTRY_SIZE = KEY_HASH_SIZE + POSITION_SIZE;
+    public static final int KEY_HASH_SIZE = 16;
+    public static final int POSITION_SIZE = 8;
+    public static final int INDEX_ENTRY_SIZE = KEY_HASH_SIZE + POSITION_SIZE;
 
     private final String name;
     private final long fdWaitTimeoutMs;
@@ -253,8 +252,8 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
 
             open();
         } finally {
-            logger.info("Swap operation completed on '" + getName() + "', releasing lock.");
             fileModificationLock.writeLock().unlock();
+            logger.info("Swap operation completed on '" + getName() + "', releasing lock.");
         }
     }
 
@@ -299,7 +298,7 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
         }
     }
 
-    public ClosableIterator<Entry<ByteArray, Versioned<byte[]>>> entries() {
+    public ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> entries() {
         throw new UnsupportedOperationException("Iteration is not supported for "
                                                 + getClass().getName());
     }
@@ -324,15 +323,13 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
             List<Pair<ByteArray, Long>> keysAndValueLocations = Lists.newArrayList();
             for(ByteArray key: keys) {
                 long valueLocation = getValueLocation(index, key.get());
-                if(valueLocation < 0)
-                    result.put(key, Collections.<Versioned<byte[]>> emptyList());
-                else
+                if(valueLocation >= 0)
                     keysAndValueLocations.add(Pair.create(key, valueLocation));
             }
             Collections.sort(keysAndValueLocations, KEYS_AND_VALUES_COMPARATOR);
 
+            data = getFile(dataFiles);
             for(Pair<ByteArray, Long> keyAndValueLocation: keysAndValueLocations) {
-                data = getFile(dataFiles);
                 data.seek(keyAndValueLocation.getSecond());
                 int size = data.readInt();
                 byte[] value = new byte[size];
@@ -420,8 +417,7 @@ public class RandomAccessFileStore implements StorageEngine<ByteArray, byte[]> {
      * @throws IOException
      * @throws InterruptedException
      */
-    private long getValueLocation(RandomAccessFile index, byte[] key) throws IOException,
-            InterruptedException {
+    private long getValueLocation(RandomAccessFile index, byte[] key) throws IOException {
         byte[] keyMd5 = ByteUtils.md5(key);
         byte[] keyBuffer = new byte[KEY_HASH_SIZE];
         long low = 0;
