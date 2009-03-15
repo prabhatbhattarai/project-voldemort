@@ -36,19 +36,19 @@
 						<showDeprecation>false</showDeprecation>
 					</configuration>
 				</plugin>
-<!--
 				<plugin>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
 						<disableXmlReport>true</disableXmlReport>
 						<redirectTestOutputToFile>true</redirectTestOutputToFile>
+<!--
 						<excludes>
 							<exclude>**/Test*.java</exclude>
 							<exclude>**/*TestCase.java</exclude>
 						</excludes>
+-->
 					</configuration>
 				</plugin>
--->
 			</plugins>
 		</pluginManagement>
 	</build>
@@ -63,6 +63,12 @@
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>voldemort-server</artifactId>
+				<version>${project.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>voldemort-test-common</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>
 			</dependency>
