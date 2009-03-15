@@ -17,7 +17,6 @@
 package voldemort.store.metadata;
 
 import java.io.StringReader;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +26,7 @@ import voldemort.cluster.Cluster;
 import voldemort.store.StorageEngine;
 import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
+import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
@@ -196,13 +196,7 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
 
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
             throws VoldemortException {
-        Map<ByteArray, List<Versioned<byte[]>>> valMap = new HashMap<ByteArray, List<Versioned<byte[]>>>();
-        for(ByteArray key: keys) {
-            List<Versioned<byte[]>> value = get(key);
-            if(value.size() > 0) {
-                valMap.put(key, value);
-            }
-        }
-        return valMap;
+        StoreUtils.assertValidKeys(keys);
+        return StoreUtils.getAll(this, keys);
     }
 }

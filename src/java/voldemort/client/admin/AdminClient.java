@@ -72,7 +72,7 @@ public class AdminClient {
 
     public void updateClusterMetaData(int nodeId, Cluster cluster, String cluster_key)
             throws VoldemortException {
-        Node node = cluster.getNodeById(nodeId);
+        Node node = metadataStore.getCluster().getNodeById(nodeId);
         SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
         SocketAndStreams sands = pool.checkout(destination);
         try {
@@ -188,6 +188,7 @@ public class AdminClient {
             // send request for put partitions
             outputStream.writeByte(VoldemortOpCode.PUT_ENTRIES_AS_STREAM_OP_CODE);
             outputStream.writeUTF(storeName);
+            outputStream.flush();
 
             for(Entry<ByteArray, Versioned<byte[]>> entry: entryList) {
 
@@ -199,6 +200,13 @@ public class AdminClient {
                 outputStream.writeInt(value.getValue().length + clock.sizeInBytes());
                 outputStream.write(clock.toBytes());
                 outputStream.write(value.getValue());
+
+                outputStream.flush();
+
+                // TODO: clean this after all testing
+                System.out.println("Client :: put(Node:" + nodeId + " store:" + storeName
+                                   + ") key:" + new String(entry.getKey().get()) + " value:"
+                                   + new String(entry.getValue().getValue()));
 
             }
             outputStream.writeInt(-1);
@@ -222,12 +230,12 @@ public class AdminClient {
      * <li>Get Current Cluster configuration from {@link MetadataStore}</li>
      * <li>update current config as {@link MetadataStore#OLD_CLUSTER_KEY}</li>
      * <li>Set Current Server state as {@link SERVER_STATE#REBALANCING_STATE}</li>
-     * <li> create a new cluster config by stealing partitions from all nodes</li>
+     * <li>create a new cluster config by stealing partitions from all nodes</li>
      * <li>For All nodes do
      * <ul>
-     * <li> identify steal list for this node and make a temp. cluster Config</li>
-     * <li> Update ALL servers with temp. cluster Config </li>
-     * <li> steal partitions </li>
+     * <li>identify steal list for this node and make a temp. cluster Config</li>
+     * <li>Update ALL servers with temp. cluster Config</li>
+     * <li>steal partitions</li>
      * </ul>
      * </li>
      * <li>Set Current Server state as {@link SERVER_STATE#NORMAL_STATE}</li>
@@ -284,14 +292,14 @@ public class AdminClient {
      * <li>Create new Cluster config by identifying partitions to return</li>
      * <li>For All nodes do
      * <ul>
-     * <li> identify steal list for this node 'K' </li>
+     * <li>identify steal list for this node 'K'</li>
      * <li>update current config as {@link MetadataStore#OLD_CLUSTER_KEY} on
      * remote node 'K'</li>
-     * <li> create a temp cluster config </li>
-     * <li> Update ALL servers with temp cluster Config </li>
+     * <li>create a temp cluster config</li>
+     * <li>Update ALL servers with temp cluster Config</li>
      * <li>Set remote node 'K' state as {@link SERVER_STATE#REBALANCING_STATE}</li>
-     * <li> return partitions </li>
-     * <li> Set remote node 'K' state as {@link SERVER_STATE#NORMAL_STATE}</li>
+     * <li>return partitions</li>
+     * <li>Set remote node 'K' state as {@link SERVER_STATE#NORMAL_STATE}</li>
      * </ul>
      * </li>
      * </ul>

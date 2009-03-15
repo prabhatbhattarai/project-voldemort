@@ -103,6 +103,7 @@ public class RebalancingStoreClientTest extends TestCase {
         client.updateClusterMetaData(server.getIdentityNode().getId(),
                                      updatedCluster,
                                      MetadataStore.CLUSTER_KEY);
+        client.restartServices(server.getIdentityNode().getId());
     }
 
     public void testBootstrapMetadata() {
