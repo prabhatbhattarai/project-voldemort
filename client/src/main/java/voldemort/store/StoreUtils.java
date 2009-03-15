@@ -16,12 +16,19 @@
 
 package voldemort.store;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
+import voldemort.serialization.Serializer;
+import voldemort.serialization.SerializerDefinition;
+import voldemort.serialization.SerializerFactory;
 import voldemort.versioning.Versioned;
 
 import com.google.common.collect.Maps;
@@ -33,6 +40,8 @@ import com.google.common.collect.Maps;
  * 
  */
 public class StoreUtils {
+
+    private static Logger logger = Logger.getLogger(StoreUtils.class);
 
     public static void assertValidKeys(Iterable<?> keys) {
         if(keys == null)
@@ -80,5 +89,36 @@ public class StoreUtils {
         if(iterable instanceof Collection<?>)
             return Maps.newHashMapWithExpectedSize(((Collection<?>) iterable).size());
         return Maps.newHashMap();
+    }
+
+    /**
+     * Closes an InputStream and logs a potential error instead of re-throwing
+     * the exception. If a {@code null} stream is passed, this method is a
+     * no-op.
+     * 
+     * This is typically used in finally blocks to prevent an exception thrown
+     * during close from hiding an exception thrown inside the try.
+     * 
+     * @param input the InputStream to close, may be null.
+     */
+    public static void close(InputStream stream) {
+        if(stream != null) {
+            try {
+                stream.close();
+            } catch(IOException e) {
+                logger.error("Error closing stream", e);
+            }
+        }
+    }
+
+    /**
+     * This is a temporary measure until we have a type-safe solution for
+     * retrieving serializers from a SerializerFactory. It avoids warnings all
+     * over the codebase while making it easy to verify who calls it.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Serializer<T> unsafeGetSerializer(SerializerFactory serializerFactory,
+                                                        SerializerDefinition serializerDefinition) {
+        return (Serializer<T>) serializerFactory.getSerializer(serializerDefinition);
     }
 }

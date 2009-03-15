@@ -24,12 +24,13 @@ public class VersionedSerializerTest extends TestCase {
 
     private VersionedSerializer<String> serializer;
 
+    @Override
     public void setUp() {
         this.serializer = new VersionedSerializer<String>(new StringSerializer("UTF-8"));
     }
 
     private void assertSerializes(String message, Versioned<String> obj) {
-        assertEquals(obj, this.serializer.toObject(this.serializer.toBytes(obj)));
+        assertEquals(message, obj, this.serializer.toObject(this.serializer.toBytes(obj)));
     }
 
     public void testSerialization() {

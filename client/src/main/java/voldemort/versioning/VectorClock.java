@@ -23,6 +23,8 @@ import java.util.List;
 import voldemort.annotations.concurrency.NotThreadsafe;
 import voldemort.utils.ByteUtils;
 
+import com.google.common.collect.Lists;
+
 /**
  * A vector of the number of writes mastered by each node. The vector is stored
  * sparely, since, in general, writes will be mastered by only one node. This
@@ -155,14 +157,19 @@ public class VectorClock implements Version, Serializable {
         boolean found = false;
         int index = 0;
         for(; index < versions.size(); index++) {
-            if(versions.get(index).getNodeId() >= node) {
+            if(versions.get(index).getNodeId() == node) {
                 found = true;
+                break;
+            } else if(versions.get(index).getNodeId() > node) {
+                found = false;
                 break;
             }
         }
 
         if(found) {
             versions.set(index, versions.get(index).incremented());
+        } else if(index < versions.size() - 1) {
+            versions.add(index, new ClockEntry((short) node, (short) 1));
         } else {
             // we don't already have a version for this, so add it
             if(versions.size() > MAX_NUMBER_OF_VERSIONS)
@@ -186,9 +193,8 @@ public class VectorClock implements Version, Serializable {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public VectorClock clone() {
-        return new VectorClock(new ArrayList(versions), this.timestamp);
+        return new VectorClock(Lists.newArrayList(versions), this.timestamp);
     }
 
     @Override
@@ -254,13 +260,14 @@ public class VectorClock implements Version, Serializable {
                 i++;
             } else {
                 newClock.versions.add(v2.clone());
+                j++;
             }
         }
 
         // Okay now there may be leftovers on one or the other list remaining
         for(int k = i; k < this.versions.size(); k++)
             newClock.versions.add(this.versions.get(k).clone());
-        for(int k = j; k < this.versions.size(); k++)
+        for(int k = j; k < clock.versions.size(); k++)
             newClock.versions.add(clock.versions.get(k).clone());
 
         return newClock;

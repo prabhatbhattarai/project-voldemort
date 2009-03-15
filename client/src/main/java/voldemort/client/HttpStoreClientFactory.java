@@ -45,7 +45,7 @@ import voldemort.utils.ByteArray;
  */
 public class HttpStoreClientFactory extends AbstractStoreClientFactory {
 
-    public static String URL_SCHEME = "http";
+    public static final String URL_SCHEME = "http";
 
     private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
     private static final int DEFAULT_SO_TIMEOUT = 5000;
@@ -119,7 +119,7 @@ public class HttpStoreClientFactory extends AbstractStoreClientFactory {
         HttpClientParams clientParams = this.httpClient.getParams();
         clientParams.setConnectionManagerTimeout(connectionManagerTimeoutMs);
         clientParams.setSoTimeout(socketSoTimeoutMs);
-        clientParams.setParameter(HttpClientParams.RETRY_HANDLER,
+        clientParams.setParameter(HttpMethodParams.RETRY_HANDLER,
                                   new DefaultHttpMethodRetryHandler(numRetries, false));
         clientParams.setCookiePolicy(CookiePolicy.IGNORE_COOKIES);
         clientParams.setParameter("http.useragent", VOLDEMORT_USER_AGENT);

@@ -28,14 +28,13 @@ import org.apache.commons.io.FileUtils;
 
 import voldemort.VoldemortException;
 import voldemort.cluster.Cluster;
-import voldemort.store.Entry;
 import voldemort.store.StorageEngine;
-import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
 import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
+import voldemort.utils.Pair;
 import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
@@ -54,13 +53,11 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
     private final File directory;
     private final ClusterMapper clusterMapper;
     private final StoreDefinitionsMapper storeMapper;
-    private final Map<String, ? extends Store<ByteArray, byte[]>> stores;
 
-    public MetadataStore(File directory, Map<String, ? extends Store<ByteArray, byte[]>> stores) {
+    public MetadataStore(File directory) {
         this.directory = directory;
         this.storeMapper = new StoreDefinitionsMapper();
         this.clusterMapper = new ClusterMapper();
-        this.stores = stores;
         if(this.directory.listFiles() == null)
             throw new IllegalArgumentException("No configuration found in "
                                                + this.directory.getAbsolutePath() + ".");
@@ -131,8 +128,8 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
         return ByteUtils.getString(found.get(0).getValue(), "UTF-8");
     }
 
-    public ClosableIterator<Entry<ByteArray, Versioned<byte[]>>> entries() {
-        throw new IllegalStateException("Not implemented.");
+    public ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> entries() {
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
 }
