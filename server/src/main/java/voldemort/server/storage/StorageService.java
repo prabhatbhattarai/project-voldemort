@@ -45,6 +45,7 @@ import voldemort.server.AbstractService;
 import voldemort.server.VoldemortConfig;
 import voldemort.server.scheduler.DataCleanupJob;
 import voldemort.server.scheduler.SchedulerService;
+import voldemort.store.Constants;
 import voldemort.store.StorageConfiguration;
 import voldemort.store.StorageEngine;
 import voldemort.store.StorageEngineType;
@@ -52,9 +53,9 @@ import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
 import voldemort.store.bdb.BdbStorageConfiguration;
 import voldemort.store.logging.LoggingStore;
+import voldemort.store.metadata.MetadataStore;
 import voldemort.store.memory.CacheStorageConfiguration;
 import voldemort.store.memory.InMemoryStorageConfiguration;
-import voldemort.store.metadata.MetadataStore;
 import voldemort.store.mysql.MysqlStorageConfiguration;
 import voldemort.store.readonly.RandomAccessFileStorageConfiguration;
 import voldemort.store.readonly.RandomAccessFileStore;
@@ -124,7 +125,7 @@ public class StorageService extends AbstractService {
     @Override
     protected void startInner() {
         this.localStoreMap.clear();
-        this.localStoreMap.put(MetadataStore.METADATA_STORE_NAME, metadataStore);
+        this.localStoreMap.put(Constants.METADATA_STORE_NAME, metadataStore);
         Store<ByteArray, byte[]> slopStorage = getStore("slop", voldemortConfig.getSlopStoreType());
         this.slopStore = new SerializingStore<ByteArray, Slop>(slopStorage,
                                                                new ByteArraySerializer(),
@@ -134,7 +135,7 @@ public class StorageService extends AbstractService {
         logger.info("Initializing stores:");
         Time time = new SystemTime();
         for(StoreDefinition def: storeDefs) {
-            if(!def.getName().equals(MetadataStore.METADATA_STORE_NAME)) {
+            if(!def.getName().equals(Constants.METADATA_STORE_NAME)) {
                 logger.info("Opening store '" + def.getName() + "'.");
                 StorageEngine<ByteArray, byte[]> engine = getStore(def.getName(), def.getType());
                 rawEngines.put(engine.getName(), engine);
