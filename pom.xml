@@ -39,14 +39,13 @@
 				<plugin>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
-						<disableXmlReport>true</disableXmlReport>
 						<redirectTestOutputToFile>true</redirectTestOutputToFile>
-<!--
+						<includes>
+							<include>**/*Test.java</include>
+						</includes>
 						<excludes>
-							<exclude>**/Test*.java</exclude>
-							<exclude>**/*TestCase.java</exclude>
+							<exclude>**/Abstract*.java</exclude>
 						</excludes>
--->
 					</configuration>
 				</plugin>
 			</plugins>
@@ -223,6 +222,12 @@
 				<version>4.1</version>
 				<scope>test</scope>
 			</dependency>
+			<dependency>
+				<groupId>mysql</groupId>
+				<artifactId>mysql-connector-java</artifactId>
+				<version>5.1.6</version>
+				<scope>runtime</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 	<repositories>
@@ -230,6 +235,12 @@
 			<id>oracleReleases</id>
 			<name>Oracle Released Java Packages</name>
 			<url>http://download.oracle.com/maven</url>
+			<layout>default</layout>
+		</repository>
+		<repository>
+			<id>ibiblio</id>
+			<name>iBiblio Mirrors</name>
+			<url>http://mirrors.ibiblio.org/pub/mirrors/maven2</url>
 			<layout>default</layout>
 		</repository>
 		<repository>
