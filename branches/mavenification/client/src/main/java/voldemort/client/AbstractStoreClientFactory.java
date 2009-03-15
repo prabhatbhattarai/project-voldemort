@@ -32,10 +32,10 @@ import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.Serializer;
 import voldemort.serialization.SerializerFactory;
 import voldemort.serialization.StringSerializer;
+import voldemort.store.Constants;
 import voldemort.store.Store;
 import voldemort.store.StoreDefinition;
 import voldemort.store.logging.LoggingStore;
-import voldemort.store.metadata.MetadataStore;
 import voldemort.store.routed.RoutedStore;
 import voldemort.store.serialized.SerializingStore;
 import voldemort.store.versioned.InconsistencyResolvingStore;
@@ -94,10 +94,9 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
     @SuppressWarnings("unchecked")
     public <K, V> StoreClient<K, V> getStoreClient(String storeName,
                                                    InconsistencyResolver<Versioned<V>> inconsistencyResolver) {
-        // Get cluster and store metadata
-        String clusterXml = bootstrapMetadata(MetadataStore.CLUSTER_KEY, bootstrapUrls);
+        String clusterXml = bootstrapMetadata(Constants.CLUSTER_KEY, bootstrapUrls);
         Cluster cluster = clusterMapper.readCluster(new StringReader(clusterXml));
-        String storesXml = bootstrapMetadata(MetadataStore.STORES_KEY, bootstrapUrls);
+        String storesXml = bootstrapMetadata(Constants.STORES_KEY, bootstrapUrls);
         List<StoreDefinition> storeDefs = storeMapper.readStoreList(new StringReader(storesXml));
         StoreDefinition storeDef = null;
         for(StoreDefinition d: storeDefs)
@@ -159,7 +158,7 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
     private String bootstrapMetadata(String key, URI[] urls) {
         for(URI url: urls) {
             try {
-                Store<ByteArray, byte[]> remoteStore = getStore(MetadataStore.METADATA_STORE_NAME,
+                Store<ByteArray, byte[]> remoteStore = getStore(Constants.METADATA_STORE_NAME,
                                                                 url.getHost(),
                                                                 url.getPort());
                 Store<String, String> store = new SerializingStore<String, String>(remoteStore,

@@ -28,6 +28,7 @@ import org.apache.commons.io.FileUtils;
 
 import voldemort.VoldemortException;
 import voldemort.cluster.Cluster;
+import voldemort.store.Constants;
 import voldemort.store.StorageEngine;
 import voldemort.store.StoreDefinition;
 import voldemort.store.StoreUtils;
@@ -45,9 +46,6 @@ import com.google.common.collect.ImmutableSet;
 
 public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
 
-    public static final String METADATA_STORE_NAME = "metadata";
-    public static final String CLUSTER_KEY = "cluster.xml";
-    public static final String STORES_KEY = "stores.xml";
     public static final Set<String> KNOWN_KEYS = ImmutableSet.of("cluster.xml", "stores.xml");
 
     private final File directory;
@@ -68,7 +66,7 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
     }
 
     public String getName() {
-        return METADATA_STORE_NAME;
+        return Constants.METADATA_STORE_NAME;
     }
 
     public boolean delete(ByteArray key, Version version) throws VoldemortException {
@@ -109,7 +107,7 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
     }
 
     public Cluster getCluster() {
-        return clusterMapper.readCluster(createStringReader(CLUSTER_KEY));
+        return clusterMapper.readCluster(createStringReader(Constants.CLUSTER_KEY));
     }
 
     private StringReader createStringReader(String keyName) {
@@ -118,7 +116,7 @@ public class MetadataStore implements StorageEngine<ByteArray, byte[]> {
     }
 
     public List<StoreDefinition> getStores() {
-        return storeMapper.readStoreList(createStringReader(STORES_KEY));
+        return storeMapper.readStoreList(createStringReader(Constants.STORES_KEY));
     }
 
     private String getSingleValue(List<Versioned<byte[]>> found) {
