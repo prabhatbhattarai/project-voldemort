@@ -37,6 +37,7 @@ import voldemort.server.http.StoreServlet;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
 import voldemort.store.http.HttpStore;
+import voldemort.store.Constants;
 import voldemort.store.memory.InMemoryStorageEngine;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.store.socket.SocketPool;
@@ -65,7 +66,7 @@ public class ServerTestUtils {
             FileUtils.writeStringToFile(new File(metadataDir, "cluster.xml"), clusterXml);
             FileUtils.writeStringToFile(new File(metadataDir, "stores.xml"), storesXml);
             MetadataStore metadata = new MetadataStore(metadataDir);
-            stores.put(MetadataStore.METADATA_STORE_NAME, metadata);
+            stores.put(Constants.METADATA_STORE_NAME, metadata);
             return stores;
         } catch(IOException e) {
             throw new VoldemortException("Error creating metadata directory:", e);
