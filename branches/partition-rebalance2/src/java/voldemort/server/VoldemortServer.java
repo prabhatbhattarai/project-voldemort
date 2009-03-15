@@ -40,9 +40,13 @@ import voldemort.store.Store;
 import voldemort.store.filesystem.FilesystemStorageEngine;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.utils.ByteArray;
+import voldemort.utils.ByteUtils;
 import voldemort.utils.Props;
 import voldemort.utils.SystemTime;
 import voldemort.utils.Utils;
+import voldemort.versioning.VectorClock;
+import voldemort.versioning.Versioned;
+import voldemort.xml.ClusterMapper;
 
 /**
  * This is the main server, it bootstraps all the services.
@@ -65,8 +69,6 @@ public class VoldemortServer extends AbstractService {
     private final MetadataStore metadataStore;
     private final AdminService adminService;
 
-    private Cluster cluster;
-
     public static enum SERVER_STATE {
         NORMAL_STATE,
         REBALANCING_STATE,
@@ -81,8 +83,8 @@ public class VoldemortServer extends AbstractService {
         this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
                                                                            voldemortConfig.getMetadataDirectory()),
                                                storeMap);
-        this.cluster = this.metadataStore.getCluster();
-        this.identityNode = this.cluster.getNodeById(voldemortConfig.getNodeId());
+        this.identityNode = this.metadataStore.getCluster()
+                                              .getNodeById(voldemortConfig.getNodeId());
         this.services = createServices(metadataStore);
         this.adminService = createAdminService(metadataStore, services);
     }
@@ -90,13 +92,17 @@ public class VoldemortServer extends AbstractService {
     public VoldemortServer(Props props, Cluster cluster) {
         super("voldemort-server");
         this.voldemortConfig = new VoldemortConfig(props);
-        this.cluster = cluster;
         this.identityNode = cluster.getNodeById(voldemortConfig.getNodeId());
         this.storeMap = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
         this.storeEngineMap = new ConcurrentHashMap<String, StorageEngine<ByteArray, byte[]>>();
         this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
                                                                            voldemortConfig.getMetadataDirectory()),
                                                storeMap);
+        // update cluster details in metaDataStore
+        metadataStore.put(new ByteArray(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY, "UTF-8")),
+                          new Versioned<byte[]>(ByteUtils.getBytes(new ClusterMapper().writeCluster(cluster),
+                                                                   "UTF-8"),
+                                                new VectorClock()));
         this.services = createServices(metadataStore);
         this.adminService = createAdminService(metadataStore, services);
     }
@@ -104,13 +110,17 @@ public class VoldemortServer extends AbstractService {
     public VoldemortServer(VoldemortConfig config, Cluster cluster) {
         super("voldemort-server");
         this.voldemortConfig = config;
-        this.cluster = cluster;
         this.identityNode = cluster.getNodeById(voldemortConfig.getNodeId());
         this.storeMap = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
         this.storeEngineMap = new ConcurrentHashMap<String, StorageEngine<ByteArray, byte[]>>();
         this.metadataStore = new MetadataStore(new FilesystemStorageEngine(MetadataStore.METADATA_STORE_NAME,
                                                                            voldemortConfig.getMetadataDirectory()),
                                                storeMap);
+        // update cluster details in metaDataStore
+        metadataStore.put(new ByteArray(ByteUtils.getBytes(MetadataStore.CLUSTER_KEY, "UTF-8")),
+                          new Versioned<byte[]>(ByteUtils.getBytes(new ClusterMapper().writeCluster(cluster),
+                                                                   "UTF-8"),
+                                                new VectorClock()));
         this.services = createServices(metadataStore);
         this.adminService = createAdminService(metadataStore, services);
     }
@@ -154,7 +164,11 @@ public class VoldemortServer extends AbstractService {
                                            metaStore,
                                            identityNode.getId()));
         if(voldemortConfig.isJmxEnabled())
-            services.add(new JmxService("jmx-service", this, cluster, storeMap, services));
+            services.add(new JmxService("jmx-service",
+                                        this,
+                                        this.metadataStore.getCluster(),
+                                        storeMap,
+                                        services));
 
         // we want services to stop in the opposite order they started
         Collections.reverse(services);
@@ -247,11 +261,7 @@ public class VoldemortServer extends AbstractService {
     }
 
     public Cluster getCluster() {
-        return cluster;
-    }
-
-    public void setCluster(Cluster cluster) {
-        this.cluster = cluster;
+        return this.metadataStore.getCluster();
     }
 
     public List<VoldemortService> getServices() {
