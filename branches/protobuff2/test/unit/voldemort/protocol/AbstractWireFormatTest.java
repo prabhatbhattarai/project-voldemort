@@ -43,7 +43,24 @@ public abstract class AbstractWireFormatTest extends TestCase {
         } catch(IllegalArgumentException e) {
             // this is good
         }
-
+        try {
+            testGetAllRequest(new ByteArray[] { null }, null, null, new boolean[] { false });
+            fail("Null key allowed.");
+        } catch(IllegalArgumentException e) {
+            // this is good
+        }
+        try {
+            testPutRequest(null, null, null, null);
+            fail("Null key allowed.");
+        } catch(IllegalArgumentException e) {
+            // this is good
+        }
+        try {
+            testDeleteRequest(null, null, null, false);
+            fail("Null key allowed.");
+        } catch(IllegalArgumentException e) {
+            // this is good
+        }
     }
 
     public void testGetRequests() throws Exception {
@@ -174,6 +191,8 @@ public abstract class AbstractWireFormatTest extends TestCase {
                                                 new DataOutputStream(putResponse));
             this.clientWireFormat.readPutResponse(inputStream(putResponse));
             TestUtils.assertContains(this.store, key, value);
+        } catch(IllegalArgumentException e) {
+            throw e;
         } catch(Exception e) {
             assertEquals("Unexpected exception " + e.getClass().getName(), e.getClass(), exception);
         } finally {

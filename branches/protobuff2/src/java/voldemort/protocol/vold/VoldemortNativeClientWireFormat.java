@@ -88,6 +88,7 @@ public class VoldemortNativeClientWireFormat implements ClientWireFormat {
                                    String storeName,
                                    Iterable<ByteArray> keys,
                                    boolean shouldReroute) throws IOException {
+        StoreUtils.assertValidKeys(keys);
         output.writeByte(VoldemortOpCode.GET_ALL_OP_CODE);
         output.writeUTF(storeName);
         output.writeBoolean(shouldReroute);

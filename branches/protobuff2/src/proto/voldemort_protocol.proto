@@ -29,19 +29,26 @@ message KeyedVersions {
 }
 
 message GetRequest {
-  optional bool should_route = 2 [default = false];
-  repeated bytes ids = 3;
+  optional bytes key = 1;
 }
 
 message GetResponse {
-  repeated KeyedVersions items = 1;
+  repeated Versioned versioned = 1;
+  optional Error error = 2;
+}
+
+message GetAllRequest {
+  repeated bytes keys = 1;
+}
+
+message GetAllResponse {
+  repeated KeyedVersions values = 1;
   optional Error error = 2;
 }
 
 message PutRequest {
-  optional bool should_route = 3 [default = false];
-  optional bytes key = 4;
-  optional Versioned versioned = 5;
+  optional bytes key = 1;
+  optional Versioned versioned = 2;
 }
 
 message PutResponse {
@@ -49,9 +56,8 @@ message PutResponse {
 }
 
 message DeleteRequest {
-  optional bool should_route = 3 [default = false];
-  optional bytes key = 4;
-  optional VectorClock version = 5;
+  optional bytes key = 1;
+  optional VectorClock version = 2;
 }
 
 message DeleteResponse {
@@ -61,13 +67,17 @@ message DeleteResponse {
 
 enum RequestType {
   GET = 0;
-  PUT = 1;
-  DELETE = 2;
+  GET_ALL = 1;
+  PUT = 2;
+  DELETE = 3;
 }
 
 message VoldemortRequest {
   required RequestType type = 1;
-  optional GetRequest get = 2;
-  optional PutRequest put = 3;
-  optional DeleteRequest delete = 4;
+  optional bool should_route = 2 [default = false];
+  optional string store = 3;
+  optional GetRequest get = 4;
+  optional GetAllRequest getAll = 5;
+  optional PutRequest put = 6;
+  optional DeleteRequest delete = 7;
 }

@@ -32,4 +32,11 @@ public abstract class AbstractServerWireFormat implements ServerWireFormat {
         return routedStores;
     }
 
+    protected Store<ByteArray, byte[]> getStore(String name, boolean isRouted) {
+        if(isRouted)
+            return getRoutedStores().get(name);
+        else
+            return getLocalStores().get(name);
+    }
+
 }

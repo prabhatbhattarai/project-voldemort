@@ -162,11 +162,4 @@ public class VoldemortNativeServerWireFormat extends AbstractServerWireFormat im
         stream.writeUTF(e.getMessage());
     }
 
-    private Store<ByteArray, byte[]> getStore(String name, boolean isRouted) {
-        if(isRouted)
-            return getRoutedStores().get(name);
-        else
-            return getLocalStores().get(name);
-    }
-
 }

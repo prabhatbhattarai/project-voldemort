@@ -3,6 +3,7 @@ package voldemort.protocol;
 import java.util.Map;
 
 import voldemort.VoldemortException;
+import voldemort.protocol.pb.ProtocolBuffersServerWireFormat;
 import voldemort.protocol.vold.VoldemortNativeServerWireFormat;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
@@ -23,6 +24,10 @@ public class ServerWireFormatFactory {
         switch(type) {
             case VOLDEMORT:
                 return new VoldemortNativeServerWireFormat(new ErrorCodeMapper(),
+                                                           localStores,
+                                                           routedStores);
+            case PROTOCOL_BUFFERS:
+                return new ProtocolBuffersServerWireFormat(new ErrorCodeMapper(),
                                                            localStores,
                                                            routedStores);
             default:
