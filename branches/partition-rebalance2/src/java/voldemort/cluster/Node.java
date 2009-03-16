@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
+import voldemort.VoldemortException;
 import voldemort.annotations.concurrency.Threadsafe;
 import voldemort.utils.Utils;
 
@@ -83,6 +84,9 @@ public class Node implements Serializable {
     }
 
     public int getAdminPort() {
+        if(adminSocketPort == -1) {
+            throw new VoldemortException("Attemp to use default Admin Port (-1)");
+        }
         return adminSocketPort;
     }
 

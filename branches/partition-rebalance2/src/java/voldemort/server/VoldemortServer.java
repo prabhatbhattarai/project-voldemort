@@ -127,6 +127,14 @@ public class VoldemortServer extends AbstractService {
 
     private AdminService createAdminService(MetadataStore metaStore,
                                             List<VoldemortService> serviceList) {
+        // check if Admin port is valid or not
+        try {
+            identityNode.getAdminPort();
+        } catch(VoldemortException e) {
+            logger.warn("Admin Port not set for server Id:" + identityNode.getId()
+                        + " starting w/o Admin Service (REBALANCING WILL NOT WORK)");
+        }
+
         return new AdminService("admin-service",
                                 storeEngineMap,
                                 identityNode.getAdminPort(),

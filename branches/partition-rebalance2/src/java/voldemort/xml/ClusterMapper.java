@@ -105,13 +105,16 @@ public class ClusterMapper {
         String host = server.getChildText(HOST_ELMT);
         int httpPort = Integer.parseInt(server.getChildText(HTTP_PORT_ELMT));
         int socketPort = Integer.parseInt(server.getChildText(SOCKET_PORT_ELMT));
-        int adminPort = Integer.parseInt(server.getChildText(ADMIN_PORT_ELMT));
         String partitionsText = server.getChildText(SERVER_PARTITIONS_ELMT).trim();
         List<Integer> partitions = new ArrayList<Integer>();
         if(partitionsText.length() > 0) {
             for(String aPartition: COMMA_SEP.split(partitionsText))
                 partitions.add(Integer.parseInt(aPartition.trim()));
         }
+
+        int adminPort = (null != server.getChildText(ADMIN_PORT_ELMT)) ? Integer.parseInt(server.getChildText(ADMIN_PORT_ELMT))
+                                                                      : -1;
+
         return new Node(id, host, httpPort, socketPort, adminPort, partitions);
     }
 
