@@ -93,7 +93,7 @@ public class AdminServiceTest extends TestCase {
         return config;
     }
 
-    public void _testUpdateCluster() {
+    public void testUpdateCluster() {
 
         Cluster cluster = server.getMetaDataStore().getCluster();
 
@@ -117,7 +117,7 @@ public class AdminServiceTest extends TestCase {
         TestUtils.checkClusterMatch(updatedCluster, server.getMetaDataStore().getCluster());
     }
 
-    public void _testUpdateOldCluster() {
+    public void testUpdateOldCluster() {
         Cluster cluster = server.getMetaDataStore().getCluster();
 
         // add node 3 and partition 4,5 to cluster.
@@ -145,7 +145,7 @@ public class AdminServiceTest extends TestCase {
         TestUtils.checkClusterMatch(updatedCluster, metaCluster);
     }
 
-    public void _testUpdateStores() {
+    public void testUpdateStores() {
         List<StoreDefinition> storesList = new ArrayList<StoreDefinition>(server.getMetaDataStore()
                                                                                 .getStores());
 
@@ -182,7 +182,7 @@ public class AdminServiceTest extends TestCase {
         assertEquals("Store users should no longer be available", false, foundUserStore);
     }
 
-    public void _testRedirectGet() {
+    public void testRedirectGet() {
         // user store should be present
         Store<ByteArray, byte[]> store = server.getStoreMap().get("users");
 
@@ -210,14 +210,14 @@ public class AdminServiceTest extends TestCase {
                                       .getValue()));
     }
 
-    public void _testRestart() {
+    public void testRestart() {
         AdminClient client = new AdminClient(server.getIdentityNode(),
                                              server.getMetaDataStore(),
                                              new SocketPool(100, 100, 2000, 10000));
         client.restartServices(server.getIdentityNode().getId());
     }
 
-    public void _testStateTransitions() {
+    public void testStateTransitions() {
         // change to REBALANCING STATE
         AdminClient client = new AdminClient(server.getIdentityNode(),
                                              server.getMetaDataStore(),
@@ -254,7 +254,7 @@ public class AdminServiceTest extends TestCase {
                      state);
     }
 
-    public void _testGetPartitionsAsStream() throws IOException {
+    public void testGetPartitionsAsStream() throws IOException {
         // user store should be present
         String storeName = "test-replication-1";
         Store<ByteArray, byte[]> store = server.getStoreMap().get(storeName);
