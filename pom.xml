@@ -16,6 +16,7 @@
 		<module>client</module>
 		<module>server</module>
 		<module>test</module>
+		<module>example</module>
 	</modules>
 	<build>
 		<defaultGoal>package</defaultGoal>
