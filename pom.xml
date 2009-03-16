@@ -45,6 +45,7 @@
 						</includes>
 						<excludes>
 							<exclude>**/Abstract*.java</exclude>
+							<exclude>**/MysqlStorageEngineTest.java</exclude>
 						</excludes>
 					</configuration>
 				</plugin>
@@ -222,12 +223,6 @@
 				<version>4.1</version>
 				<scope>test</scope>
 			</dependency>
-			<dependency>
-				<groupId>mysql</groupId>
-				<artifactId>mysql-connector-java</artifactId>
-				<version>5.1.6</version>
-				<scope>runtime</scope>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 	<repositories>
@@ -238,18 +233,31 @@
 			<layout>default</layout>
 		</repository>
 		<repository>
-			<id>ibiblio</id>
-			<name>iBiblio Mirrors</name>
-			<url>http://mirrors.ibiblio.org/pub/mirrors/maven2</url>
-			<layout>default</layout>
-		</repository>
-		<repository>
 			<id>therudolphs.org</id>
 			<name>Gary Rudolph Repository</name>
 			<url>http://www.therudolphs.org/repo</url>
 			<layout>default</layout>
 		</repository>
 	</repositories>
+	<profiles>
+		<profile>
+			<id>mysql</id>
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludes>
+									<exclude>**/Abstract*.java</exclude>
+								</excludes>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+	</profiles>
 	<properties>
 		<organization.logo>http://groups.google.com/group/project-voldemort/icon?v=2&amp;hl=en</organization.logo>
 	</properties>
