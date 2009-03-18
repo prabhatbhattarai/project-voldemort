@@ -17,14 +17,10 @@
 package voldemort.client;
 
 import java.net.URI;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import voldemort.cluster.Node;
-import voldemort.serialization.DefaultSerializerFactory;
-import voldemort.serialization.SerializerFactory;
+import voldemort.protocol.WireFormatType;
 import voldemort.store.Store;
 import voldemort.store.socket.SocketPool;
 import voldemort.store.socket.SocketStore;
@@ -43,115 +39,31 @@ import voldemort.utils.Utils;
 public class SocketStoreClientFactory extends AbstractStoreClientFactory {
 
     public static final String URL_SCHEME = "tcp";
-    public static final int DEFAULT_SOCKET_TIMEOUT_MS = 5000;
-    public static final int DEFAULT_NUM_THREADS = 5;
-    public static final int DEFAULT_MAX_QUEUED_REQUESTS = 1000;
-    public static final int DEFAULT_MAX_CONNECTIONS_PER_NODE = 10;
-    public static final int DEFAULT_MAX_CONNECTIONS = 50;
-    public static final int DEFAULT_SOCKET_BUFFER_SIZE = 32 * 1024;
 
-    private SocketPool socketPool;
+    private final SocketPool socketPool;
+    private final RoutingTier routingTier;
 
-    public SocketStoreClientFactory(String bootstrapUrl) {
-        this(DEFAULT_NUM_THREADS,
-             DEFAULT_NUM_THREADS,
-             DEFAULT_MAX_QUEUED_REQUESTS,
-             DEFAULT_MAX_CONNECTIONS_PER_NODE,
-             DEFAULT_MAX_CONNECTIONS,
-             bootstrapUrl);
-    }
-
-    public SocketStoreClientFactory(int coreThreads,
-                                    int maxThreads,
-                                    int maxQueuedRequests,
-                                    int maxConnectionsPerNode,
-                                    int maxTotalConnections,
-                                    String... bootstrapUrls) {
-        this(coreThreads,
-             maxThreads,
-             maxQueuedRequests,
-             maxConnectionsPerNode,
-             maxTotalConnections,
-             DEFAULT_SOCKET_TIMEOUT_MS,
-             AbstractStoreClientFactory.DEFAULT_ROUTING_TIMEOUT_MS,
-             bootstrapUrls);
-    }
-
-    public SocketStoreClientFactory(int coreThreads,
-                                    int maxThreads,
-                                    int maxQueuedRequests,
-                                    int maxConnectionsPerNode,
-                                    int maxTotalConnections,
-                                    int socketTimeoutMs,
-                                    int routingTimeoutMs,
-                                    String... bootstrapUrls) {
-        this(new ThreadPoolExecutor(coreThreads,
-                                    maxThreads,
-                                    10000L,
-                                    TimeUnit.MILLISECONDS,
-                                    new LinkedBlockingQueue<Runnable>(maxQueuedRequests),
-                                    new DaemonThreadFactory("voldemort-client-thread-"),
-                                    new ThreadPoolExecutor.CallerRunsPolicy()),
-             maxConnectionsPerNode,
-             maxTotalConnections,
-             socketTimeoutMs,
-             routingTimeoutMs,
-             AbstractStoreClientFactory.DEFAULT_NODE_BANNAGE_MS,
-             new DefaultSerializerFactory(),
-             bootstrapUrls);
-    }
-
-    public SocketStoreClientFactory(ExecutorService service,
-                                    int maxConnectionsPerNode,
-                                    int maxTotalConnections,
-                                    int socketTimeoutMs,
-                                    int routingTimeoutMs,
-                                    int defaultNodeBannageMs,
-                                    String... bootstrapUrls) {
-        this(service,
-             maxConnectionsPerNode,
-             maxTotalConnections,
-             socketTimeoutMs,
-             routingTimeoutMs,
-             defaultNodeBannageMs,
-             new DefaultSerializerFactory(),
-             bootstrapUrls);
-    }
-
-    public SocketStoreClientFactory(ExecutorService service,
-                                    int maxConnectionsPerNode,
-                                    int maxTotalConnections,
-                                    int socketTimeoutMs,
-                                    int routingTimeoutMs,
-                                    int defaultNodeBannageMs,
-                                    SerializerFactory serializerFactory,
-                                    String... boostrapUrls) {
-        super(service, serializerFactory, routingTimeoutMs, defaultNodeBannageMs, boostrapUrls);
-        this.socketPool = new SocketPool(maxConnectionsPerNode,
-                                         maxTotalConnections,
-                                         socketTimeoutMs,
-                                         DEFAULT_SOCKET_BUFFER_SIZE);
-    }
-
-    public SocketStoreClientFactory(ExecutorService service,
-                                    int maxConnectionsPerNode,
-                                    int maxTotalConnections,
-                                    int socketTimeoutMs,
-                                    int routingTimeoutMs,
-                                    int defaultNodeBannageMs,
-                                    int socketBufferSize,
-                                    SerializerFactory serializerFactory,
-                                    String... boostrapUrls) {
-        super(service, serializerFactory, routingTimeoutMs, defaultNodeBannageMs, boostrapUrls);
-        this.socketPool = new SocketPool(maxConnectionsPerNode,
-                                         maxTotalConnections,
-                                         socketTimeoutMs,
-                                         socketBufferSize);
+    public SocketStoreClientFactory(ClientConfig config) {
+        super(config);
+        this.routingTier = config.getRoutingTier();
+        this.socketPool = new SocketPool(config.getMaxConnectionsPerNode(),
+                                         config.getMaxTotalConnections(),
+                                         config.getConnectionTimeout(TimeUnit.MILLISECONDS),
+                                         config.getSocketTimeout(TimeUnit.MILLISECONDS),
+                                         config.getSocketBufferSize());
     }
 
     @Override
-    protected Store<ByteArray, byte[]> getStore(String storeName, String host, int port) {
-        return new SocketStore(Utils.notNull(storeName), Utils.notNull(host), port, socketPool);
+    protected Store<ByteArray, byte[]> getStore(String storeName,
+                                                String host,
+                                                int port,
+                                                WireFormatType type) {
+        return new SocketStore(Utils.notNull(storeName),
+                               Utils.notNull(host),
+                               port,
+                               socketPool,
+                               type,
+                               RoutingTier.SERVER.equals(routingTier));
     }
 
     @Override

@@ -27,8 +27,8 @@ public class VoldemortNativeClientWireFormat implements ClientWireFormat {
 
     public final ErrorCodeMapper mapper;
 
-    public VoldemortNativeClientWireFormat(ErrorCodeMapper mapper) {
-        this.mapper = mapper;
+    public VoldemortNativeClientWireFormat() {
+        this.mapper = new ErrorCodeMapper();
     }
 
     public void writeDeleteRequest(DataOutputStream outputStream,

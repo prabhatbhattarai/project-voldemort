@@ -32,6 +32,8 @@ import org.mortbay.jetty.servlet.ServletHolder;
 
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
+import voldemort.protocol.ServerWireFormatFactory;
+import voldemort.protocol.WireFormatType;
 import voldemort.server.VoldemortConfig;
 import voldemort.server.http.StoreServlet;
 import voldemort.server.socket.SocketServer;
@@ -75,21 +77,30 @@ public class ServerTestUtils {
     public static SocketServer getSocketServer(String clusterXml,
                                                String storesXml,
                                                String storeName,
-                                               int port) {
-
-        SocketServer socketServer = new SocketServer(getStores(storeName, clusterXml, storesXml),
-                                                     port,
+                                               int port,
+                                               WireFormatType type) {
+        ServerWireFormatFactory factory = new ServerWireFormatFactory(getStores(storeName,
+                                                                                clusterXml,
+                                                                                storesXml),
+                                                                      new ConcurrentHashMap<String, Store<ByteArray, byte[]>>());
+        SocketServer socketServer = new SocketServer(port,
                                                      5,
                                                      10,
-                                                     10000);
+                                                     10000,
+                                                     factory.getWireFormat(type));
         socketServer.start();
         socketServer.awaitStartupCompletion();
         return socketServer;
     }
 
     public static SocketStore getSocketStore(String storeName, int port) {
-        SocketPool socketPool = new SocketPool(1, 2, 1000, 32 * 1024);
-        return new SocketStore(storeName, "localhost", port, socketPool);
+        SocketPool socketPool = new SocketPool(1, 2, 10000, 1000, 32 * 1024);
+        return new SocketStore(storeName,
+                               "localhost",
+                               port,
+                               socketPool,
+                               WireFormatType.VOLDEMORT,
+                               false);
     }
 
     public static Context getJettyServer(String clusterXml,
@@ -169,20 +180,20 @@ public class ServerTestUtils {
         props.put("bdb.cache.size", 1 * 1024 * 1024);
         props.put("jmx.enable", "false");
         VoldemortConfig config = new VoldemortConfig(props);
-    
+
         // clean and reinit metadata dir.
         File tempDir = new File(config.getMetadataDirectory());
         tempDir.mkdirs();
-    
+
         File tempDir2 = new File(config.getDataDirectory());
         tempDir2.mkdirs();
-    
+
         // copy cluster.xml / stores.xml to temp metadata dir.
         FileUtils.copyFile(new File(clusterFile), new File(tempDir.getAbsolutePath()
                                                            + File.separatorChar + "cluster.xml"));
         FileUtils.copyFile(new File(storeFile), new File(tempDir.getAbsolutePath()
                                                          + File.separatorChar + "stores.xml"));
-    
+
         return config;
     }
 }

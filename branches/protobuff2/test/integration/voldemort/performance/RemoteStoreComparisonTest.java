@@ -29,6 +29,8 @@ import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 
+import voldemort.protocol.ServerWireFormatFactory;
+import voldemort.protocol.WireFormatType;
 import voldemort.server.http.HttpService;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
@@ -86,9 +88,19 @@ public class RemoteStoreComparisonTest {
         String storeName = "test";
         ConcurrentMap<String, Store<ByteArray, byte[]>> stores = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>(1);
         stores.put(storeName, new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
-        SocketPool socketPool = new SocketPool(10, 10, 1000, 32 * 1024);
-        final SocketStore socketStore = new SocketStore(storeName, "localhost", 6666, socketPool);
-        SocketServer socketServer = new SocketServer(stores, 6666, 50, 50, 1000);
+        SocketPool socketPool = new SocketPool(10, 10, 1000, 1000, 32 * 1024);
+        final SocketStore socketStore = new SocketStore(storeName,
+                                                        "localhost",
+                                                        6666,
+                                                        socketPool,
+                                                        WireFormatType.VOLDEMORT,
+                                                        false);
+        ServerWireFormatFactory factory = new ServerWireFormatFactory(stores, stores);
+        SocketServer socketServer = new SocketServer(6666,
+                                                     50,
+                                                     50,
+                                                     1000,
+                                                     factory.getWireFormat(WireFormatType.VOLDEMORT));
         socketServer.start();
         socketServer.awaitStartupCompletion();
 

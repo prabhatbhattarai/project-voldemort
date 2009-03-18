@@ -30,6 +30,8 @@ import org.apache.log4j.Logger;
 import voldemort.VoldemortException;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
+import voldemort.protocol.ServerWireFormat;
+import voldemort.protocol.ServerWireFormatFactory;
 import voldemort.server.http.HttpService;
 import voldemort.server.jmx.JmxService;
 import voldemort.server.scheduler.SchedulerService;
@@ -99,9 +101,11 @@ public class VoldemortServer extends AbstractService {
                                          this,
                                          voldemortConfig.getMaxThreads(),
                                          identityNode.getHttpPort()));
+        // todo: properly wire local/routed map
+        ServerWireFormat wireFormat = new ServerWireFormatFactory(this.storeMap, this.storeMap).getWireFormat(voldemortConfig.getWireFormatType());
         if(voldemortConfig.isSocketServerEnabled())
             services.add(new SocketService("socket-service",
-                                           storeMap,
+                                           wireFormat,
                                            identityNode.getSocketPort(),
                                            voldemortConfig.getCoreThreads(),
                                            voldemortConfig.getMaxThreads(),

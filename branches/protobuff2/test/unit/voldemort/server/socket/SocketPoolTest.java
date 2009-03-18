@@ -17,6 +17,7 @@
 package voldemort.server.socket;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,9 +25,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
 import voldemort.ServerTestUtils;
+import voldemort.protocol.vold.VoldemortNativeServerWireFormat;
+import voldemort.store.ErrorCodeMapper;
+import voldemort.store.Store;
 import voldemort.store.socket.SocketAndStreams;
 import voldemort.store.socket.SocketDestination;
 import voldemort.store.socket.SocketPool;
+import voldemort.utils.ByteArray;
 
 /**
  * @author jay
@@ -47,14 +52,22 @@ public class SocketPoolTest extends TestCase {
         int[] ports = ServerTestUtils.findFreePorts(2);
         this.port1 = ports[0];
         this.port2 = ports[1];
-        this.pool = new SocketPool(maxConnectionsPerNode, maxTotalConnections, 1000, 32 * 1024);
+        this.pool = new SocketPool(maxConnectionsPerNode,
+                                   maxTotalConnections,
+                                   1000,
+                                   1000,
+                                   32 * 1024);
         this.dest1 = new SocketDestination("localhost", port1);
         this.dest2 = new SocketDestination("localhost", port1);
-        this.server = new SocketServer(new ConcurrentHashMap(),
-                                       port1,
+        ConcurrentMap<String, Store<ByteArray, byte[]>> m = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
+        VoldemortNativeServerWireFormat wireFormat = new VoldemortNativeServerWireFormat(new ErrorCodeMapper(),
+                                                                                         m,
+                                                                                         m);
+        this.server = new SocketServer(port1,
                                        maxTotalConnections,
                                        maxTotalConnections + 3,
-                                       10000);
+                                       10000,
+                                       wireFormat);
         this.server.start();
         this.server.awaitStartupCompletion();
     }

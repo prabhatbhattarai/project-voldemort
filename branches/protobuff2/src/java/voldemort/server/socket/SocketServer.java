@@ -16,11 +16,6 @@
 
 package voldemort.server.socket;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -28,7 +23,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Random;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
@@ -40,8 +34,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
-import voldemort.store.Store;
-import voldemort.utils.ByteArray;
+import voldemort.protocol.ServerWireFormat;
 
 /**
  * A simple socket-based server for serving voldemort requests
@@ -51,16 +44,34 @@ import voldemort.utils.ByteArray;
  */
 public class SocketServer extends Thread {
 
-    private static final Logger logger = Logger.getLogger(SocketServer.class.getName());
+    static final Logger logger = Logger.getLogger(SocketServer.class.getName());
 
     private final ExecutorService threadPool;
     private final Random random = new Random();
     private final int port;
-    private final ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap;
     private final ThreadGroup threadGroup;
     private final CountDownLatch isStarted = new CountDownLatch(1);
     private final int socketBufferSize;
+    private final ServerWireFormat wireFormat;
     private ServerSocket serverSocket = null;
+
+    public SocketServer(int port,
+                        int defaultThreads,
+                        int maxThreads,
+                        int socketBufferSize,
+                        ServerWireFormat wireFormat) {
+        this.port = port;
+        this.socketBufferSize = socketBufferSize;
+        this.threadGroup = new ThreadGroup("voldemort-socket-server");
+        this.wireFormat = wireFormat;
+        this.threadPool = new ThreadPoolExecutor(defaultThreads,
+                                                 maxThreads,
+                                                 1,
+                                                 TimeUnit.SECONDS,
+                                                 new SynchronousQueue<Runnable>(),
+                                                 threadFactory,
+                                                 rejectedExecutionHandler);
+    }
 
     private final ThreadFactory threadFactory = new ThreadFactory() {
 
@@ -88,24 +99,6 @@ public class SocketServer extends Thread {
         }
     };
 
-    public SocketServer(ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap,
-                        int port,
-                        int defaultThreads,
-                        int maxThreads,
-                        int socketBufferSize) {
-        this.port = port;
-        this.socketBufferSize = socketBufferSize;
-        this.threadGroup = new ThreadGroup("voldemort-socket-server");
-        this.storeMap = storeMap;
-        this.threadPool = new ThreadPoolExecutor(defaultThreads,
-                                                 maxThreads,
-                                                 1,
-                                                 TimeUnit.SECONDS,
-                                                 new SynchronousQueue<Runnable>(),
-                                                 threadFactory,
-                                                 rejectedExecutionHandler);
-    }
-
     @Override
     public void run() {
         logger.info("Starting voldemort socket server on port " + port + ".");
@@ -117,7 +110,7 @@ public class SocketServer extends Thread {
             while(!isInterrupted() && !serverSocket.isClosed()) {
                 final Socket socket = serverSocket.accept();
                 configureSocket(socket);
-                this.threadPool.execute(new SocketServerSession(socket));
+                this.threadPool.execute(new SocketServerSession(socket, wireFormat));
             }
         } catch(BindException e) {
             logger.error("Could not bind to port " + port + ".");
@@ -183,43 +176,6 @@ public class SocketServer extends Thread {
 
     private String getThreadName(String baseName) {
         return baseName + random.nextInt(1000000);
-    }
-
-    private class SocketServerSession implements Runnable {
-
-        private final Socket socket;
-
-        public SocketServerSession(Socket socket) {
-            this.socket = socket;
-        }
-
-        public Socket getSocket() {
-            return socket;
-        }
-
-        public void run() {
-            try {
-                logger.info("Client " + socket.getRemoteSocketAddress() + " connected.");
-                StreamStoreRequestHandler handler = new StreamStoreRequestHandler(storeMap,
-                                                                                  new DataInputStream(new BufferedInputStream(socket.getInputStream(),
-                                                                                                                              1000)),
-                                                                                  new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),
-                                                                                                                                1000)));
-                while(!Thread.currentThread().isInterrupted()) {
-                    handler.handleRequest();
-                }
-            } catch(EOFException e) {
-                logger.info("Client " + socket.getRemoteSocketAddress() + " disconnected.");
-            } catch(IOException e) {
-                logger.error(e);
-            } finally {
-                try {
-                    socket.close();
-                } catch(Exception e) {
-                    logger.error("Error while closing socket", e);
-                }
-            }
-        }
     }
 
 }

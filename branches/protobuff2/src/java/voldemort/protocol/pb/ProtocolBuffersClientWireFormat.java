@@ -20,7 +20,7 @@ import com.google.protobuf.ByteString;
 /**
  * Wire format for protocol buffers protocol
  * 
- * @author jkreps
+ * @author jay
  * 
  */
 public class ProtocolBuffersClientWireFormat implements ClientWireFormat {

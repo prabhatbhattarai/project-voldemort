@@ -16,6 +16,7 @@
 
 package voldemort.examples;
 
+import voldemort.client.ClientConfig;
 import voldemort.client.SocketStoreClientFactory;
 import voldemort.client.StoreClient;
 import voldemort.client.StoreClientFactory;
@@ -31,12 +32,7 @@ public class ClientExample {
         int maxConnectionsPerNode = 10;
         int maxTotalConnections = 100;
         String bootstrapUrl = "tcp://localhost:6666";
-        StoreClientFactory factory = new SocketStoreClientFactory(numThreads,
-                                                                  numThreads,
-                                                                  maxQueuedRequests,
-                                                                  maxConnectionsPerNode,
-                                                                  maxTotalConnections,
-                                                                  bootstrapUrl);
+        StoreClientFactory factory = new SocketStoreClientFactory(new ClientConfig().setBootstrapUrls(bootstrapUrl));
 
         StoreClient<String, String> client = factory.getStoreClient("my_store_name");
 

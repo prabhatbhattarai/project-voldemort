@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Properties;
 
+import voldemort.protocol.WireFormatType;
 import voldemort.store.StorageEngineType;
 import voldemort.utils.ConfigurationException;
 import voldemort.utils.Props;
@@ -79,6 +80,8 @@ public class VoldemortConfig implements Serializable {
     private int routingTimeoutMs;
 
     private int schedulerThreads;
+
+    private WireFormatType wireFormatType;
 
     private boolean enableSlopDetection;
     private boolean enableGui;
@@ -163,6 +166,9 @@ public class VoldemortConfig implements Serializable {
         this.pusherPollMs = props.getInt("pusher.poll.ms", 2 * 60 * 1000);
 
         this.schedulerThreads = props.getInt("scheduler.threads", 3);
+
+        String wireFormatName = props.getString("wire.format", WireFormatType.VOLDEMORT.getName());
+        this.wireFormatType = WireFormatType.fromName(wireFormatName);
 
         validateParams();
     }
@@ -607,6 +613,14 @@ public class VoldemortConfig implements Serializable {
 
     public void setSocketBufferSize(int socketBufferSize) {
         this.socketBufferSize = socketBufferSize;
+    }
+
+    public void setWireFormatType(WireFormatType type) {
+        this.wireFormatType = type;
+    }
+
+    public WireFormatType getWireFormatType() {
+        return this.wireFormatType;
     }
 
 }

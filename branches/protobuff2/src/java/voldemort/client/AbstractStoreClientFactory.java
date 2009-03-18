@@ -22,11 +22,13 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
+import voldemort.protocol.WireFormatType;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.Serializer;
@@ -68,23 +70,19 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
     private static final Logger logger = Logger.getLogger(AbstractStoreClientFactory.class);
 
     private final URI[] bootstrapUrls;
-    private final long routingTimeoutMs;
-    private final long nodeBannageMs;
+    private final int routingTimeoutMs;
+    private final int nodeBannageMs;
     private final ExecutorService threadPool;
     private final SerializerFactory serializerFactory;
-    private final boolean enableVerboseLogging;
 
-    public AbstractStoreClientFactory(ExecutorService threadPool,
-                                      SerializerFactory serializerFactory,
-                                      int routingTimeoutMs,
-                                      int nodeBannageMs,
-                                      String... bootstrapUrls) {
-        this.threadPool = threadPool;
-        this.serializerFactory = serializerFactory;
-        this.bootstrapUrls = validateUrls(bootstrapUrls);
-        this.routingTimeoutMs = routingTimeoutMs;
-        this.nodeBannageMs = nodeBannageMs;
-        this.enableVerboseLogging = true;
+    public AbstractStoreClientFactory(ClientConfig config) {
+        this.threadPool = new ClientThreadPool(config.getMaxThreads(),
+                                               config.getThreadIdleTime(TimeUnit.MILLISECONDS),
+                                               config.getMaxQueuedRequests());
+        this.serializerFactory = config.getSerializerFactory();
+        this.bootstrapUrls = validateUrls(config.getBootstrapUrls());
+        this.routingTimeoutMs = config.getRoutingTimeout(TimeUnit.MILLISECONDS);
+        this.nodeBannageMs = config.getNodeBannagePeriod(TimeUnit.MILLISECONDS);
     }
 
     public <K, V> StoreClient<K, V> getStoreClient(String storeName) {
@@ -115,9 +113,9 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
         for(Node node: cluster.getNodes()) {
             Store<ByteArray, byte[]> store = getStore(storeDef.getName(),
                                                       node.getHost(),
-                                                      getPort(node));
-            if(enableVerboseLogging)
-                store = new LoggingStore(store);
+                                                      getPort(node),
+                                                      WireFormatType.VOLDEMORT);
+            store = new LoggingStore(store);
             clientMapping.put(node.getId(), store);
         }
 
@@ -161,7 +159,8 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
             try {
                 Store<ByteArray, byte[]> remoteStore = getStore(MetadataStore.METADATA_STORE_NAME,
                                                                 url.getHost(),
-                                                                url.getPort());
+                                                                url.getPort(),
+                                                                WireFormatType.VOLDEMORT);
                 Store<String, String> store = new SerializingStore<String, String>(remoteStore,
                                                                                    new StringSerializer("UTF-8"),
                                                                                    new StringSerializer("UTF-8"));
@@ -204,7 +203,10 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
         return uris;
     }
 
-    protected abstract Store<ByteArray, byte[]> getStore(String storeName, String host, int port);
+    protected abstract Store<ByteArray, byte[]> getStore(String storeName,
+                                                         String host,
+                                                         int port,
+                                                         WireFormatType type);
 
     protected abstract int getPort(Node node);
 
@@ -224,10 +226,6 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
 
     public SerializerFactory getSerializerFactory() {
         return serializerFactory;
-    }
-
-    public boolean isEnableVerboseLogging() {
-        return enableVerboseLogging;
     }
 
 }

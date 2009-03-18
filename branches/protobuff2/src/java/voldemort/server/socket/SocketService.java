@@ -16,14 +16,11 @@
 
 package voldemort.server.socket;
 
-import java.util.concurrent.ConcurrentMap;
-
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
+import voldemort.protocol.ServerWireFormat;
 import voldemort.server.AbstractService;
 import voldemort.server.VoldemortService;
-import voldemort.store.Store;
-import voldemort.utils.ByteArray;
 
 /**
  * The VoldemortService that loads up the socket server
@@ -37,17 +34,17 @@ public class SocketService extends AbstractService implements VoldemortService {
     private final SocketServer server;
 
     public SocketService(String name,
-                         ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap,
+                         ServerWireFormat wireFormat,
                          int port,
                          int coreConnections,
                          int maxConnections,
                          int socketBufferSize) {
         super(name);
-        this.server = new SocketServer(storeMap,
-                                       port,
+        this.server = new SocketServer(port,
                                        coreConnections,
                                        maxConnections,
-                                       socketBufferSize);
+                                       socketBufferSize,
+                                       wireFormat);
     }
 
     @Override

@@ -3,14 +3,13 @@ package voldemort.protocol;
 import voldemort.VoldemortException;
 import voldemort.protocol.pb.ProtocolBuffersClientWireFormat;
 import voldemort.protocol.vold.VoldemortNativeClientWireFormat;
-import voldemort.store.ErrorCodeMapper;
 
 public class ClientWireFormatFactory {
 
     public ClientWireFormat getWireFormat(WireFormatType type) {
         switch(type) {
             case VOLDEMORT:
-                return new VoldemortNativeClientWireFormat(new ErrorCodeMapper());
+                return new VoldemortNativeClientWireFormat();
             case PROTOCOL_BUFFERS:
                 return new ProtocolBuffersClientWireFormat();
             default:

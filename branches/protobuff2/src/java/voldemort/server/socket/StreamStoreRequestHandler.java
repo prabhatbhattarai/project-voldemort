@@ -23,11 +23,13 @@ import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
 import voldemort.VoldemortException;
+import voldemort.protocol.ServerWireFormat;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
 import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
+import voldemort.utils.Utils;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
@@ -41,16 +43,19 @@ public class StreamStoreRequestHandler {
 
     private final DataInputStream inputStream;
     private final DataOutputStream outputStream;
+    private final ServerWireFormat wireFormat;
     private final ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap;
 
     private ErrorCodeMapper errorMapper = new ErrorCodeMapper();
 
     public StreamStoreRequestHandler(ConcurrentMap<String, ? extends Store<ByteArray, byte[]>> storeMap,
                                      DataInputStream inputStream,
-                                     DataOutputStream outputStream) {
-        this.inputStream = inputStream;
-        this.outputStream = outputStream;
-        this.storeMap = storeMap;
+                                     DataOutputStream outputStream,
+                                     ServerWireFormat wireFormat) {
+        this.inputStream = Utils.notNull(inputStream);
+        this.outputStream = Utils.notNull(outputStream);
+        this.storeMap = Utils.notNull(storeMap);
+        this.wireFormat = Utils.notNull(wireFormat);
     }
 
     public void handleRequest() throws IOException {
