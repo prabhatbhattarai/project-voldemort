@@ -172,12 +172,13 @@ public class AdminServiceRequestHandler {
                                                                                         clock.sizeInBytes(),
                                                                                         value.length),
                                                                          clock);
-                /*
-                 * TODO: clean this after all testing
-                 * System.out.println("put(Node:" + nodeId + " store:" +
-                 * engine.getName() + ") key:" + new String(key) + " value:" +
-                 * new String(versionedValue.getValue()));
-                 */
+
+                // TODO: clean this after all testing
+                // System.out.println("put(Node:" + nodeId + " store:" +
+                // engine.getName() + ") key:"
+                // + new String(key) + " value:"
+                // + new String(versionedValue.getValue()));
+
                 engine.put(new ByteArray(key), versionedValue);
 
                 keySize = inputStream.readInt(); // read next KeySize

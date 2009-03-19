@@ -22,6 +22,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import junit.framework.TestCase;
@@ -67,6 +68,8 @@ public class AdminServiceTest extends TestCase {
 
     @Override
     public void tearDown() throws IOException, InterruptedException {
+        // lets clean all stores individually to be sure
+        for(Map.Entry<String, Store<ByteArray, byte[]>> entry: server.getStoreMap().entrySet()) {}
         server.stop();
         FileDeleteStrategy.FORCE.delete(new File(TEMP_DIR));
     }
@@ -76,6 +79,8 @@ public class AdminServiceTest extends TestCase {
         props.put("node.id", nodeId);
         props.put("voldemort.home", TEMP_DIR + "/node-" + nodeId);
         props.put("bdb.cache.size", 1 * 1024 * 1024);
+        props.put("bdb.write.transactions", "true");
+        props.put("bdb.flush.transactions", "true");
         props.put("jmx.enable", "false");
         config = new VoldemortConfig(props);
 
@@ -342,16 +347,19 @@ public class AdminServiceTest extends TestCase {
     }
 
     public void testPipeGetAndPutStreams() throws IOException {
-        // lets make a new server
-        VoldemortConfig config2 = createServerConfig(1);
-        VoldemortServer server2 = new VoldemortServer(config2);
-        server2.start();
-
         // store should be present
         // user store should be present
         String storeName = "test-replication-1";
         Store<ByteArray, byte[]> store = server.getStoreMap().get(storeName);
         assertNotSame("Store '" + storeName + "' should not be null", null, store);
+
+        // assert server2 is missing all keys
+        for(int i = 100; i <= 1000; i++) {
+            ByteArray key = new ByteArray(ByteUtils.getBytes("" + i, "UTF-8"));
+            assertEquals("Store should return empty result List for all before inserting",
+                         0,
+                         store.get(key).size());
+        }
 
         // enter keys into server1 (keys 100 -- 1000)
         for(int i = 100; i <= 1000; i++) {
@@ -363,6 +371,11 @@ public class AdminServiceTest extends TestCase {
                                             new VectorClock().incremented(0,
                                                                           System.currentTimeMillis())));
         }
+
+        // lets make a new server
+        VoldemortConfig config2 = createServerConfig(1);
+        VoldemortServer server2 = new VoldemortServer(config2);
+        server2.start();
 
         // assert server2 is missing all keys
         for(int i = 100; i <= 1000; i++) {
