@@ -19,6 +19,7 @@ package voldemort.server;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.TestCase;
@@ -26,6 +27,7 @@ import junit.framework.TestCase;
 import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
+import voldemort.ServerTestUtils;
 import voldemort.client.admin.AdminClient;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
@@ -50,15 +52,35 @@ public class RebalancingTest extends TestCase {
 
     VoldemortServer server1;
     VoldemortServer server2;
+    Cluster cluster;
 
     @Override
     public void setUp() throws IOException {
+        // make a 2 node cluster with free ports
+        int[] ports = ServerTestUtils.findFreePorts(3);
+        Node node0 = new Node(0,
+                              "localhost",
+                              ports[0],
+                              ports[1],
+                              ports[2],
+                              Arrays.asList(new Integer[] { 0, 1 }));
+
+        ports = ServerTestUtils.findFreePorts(3);
+        Node node1 = new Node(1,
+                              "localhost",
+                              ports[0],
+                              ports[1],
+                              ports[2],
+                              Arrays.asList(new Integer[] { 2, 3 }));
+
+        cluster = new Cluster("admin-service-test", Arrays.asList(new Node[] { node0, node1 }));
+
         VoldemortConfig config = createServerConfig(0);
-        server1 = new VoldemortServer(config);
+        server1 = new VoldemortServer(config, cluster);
         server1.start();
 
         config = createServerConfig(1);
-        server2 = new VoldemortServer(config);
+        server2 = new VoldemortServer(config, cluster);
         server2.start();
     }
 

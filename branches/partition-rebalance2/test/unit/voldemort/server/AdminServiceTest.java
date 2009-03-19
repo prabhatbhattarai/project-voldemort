@@ -20,9 +20,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import junit.framework.TestCase;
@@ -30,6 +31,7 @@ import junit.framework.TestCase;
 import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
+import voldemort.ServerTestUtils;
 import voldemort.TestUtils;
 import voldemort.client.admin.AdminClient;
 import voldemort.cluster.Cluster;
@@ -58,18 +60,36 @@ public class AdminServiceTest extends TestCase {
     private static String TEMP_DIR = "test/unit/temp-output";
     VoldemortConfig config;
     VoldemortServer server;
+    Cluster cluster;
 
     @Override
     public void setUp() throws IOException {
+        // start 2 node cluster with free ports
+        int[] ports = ServerTestUtils.findFreePorts(3);
+        Node node0 = new Node(0,
+                              "localhost",
+                              ports[0],
+                              ports[1],
+                              ports[2],
+                              Arrays.asList(new Integer[] { 0, 1 }));
+
+        ports = ServerTestUtils.findFreePorts(3);
+        Node node1 = new Node(1,
+                              "localhost",
+                              ports[0],
+                              ports[1],
+                              ports[2],
+                              Arrays.asList(new Integer[] { 2, 3 }));
+
+        cluster = new Cluster("admin-service-test", Arrays.asList(new Node[] { node0, node1 }));
+
         config = createServerConfig(0);
-        server = new VoldemortServer(config);
+        server = new VoldemortServer(config, cluster);
         server.start();
     }
 
     @Override
     public void tearDown() throws IOException, InterruptedException {
-        // lets clean all stores individually to be sure
-        for(Map.Entry<String, Store<ByteArray, byte[]>> entry: server.getStoreMap().entrySet()) {}
         server.stop();
         FileDeleteStrategy.FORCE.delete(new File(TEMP_DIR));
     }
@@ -92,7 +112,6 @@ public class AdminServiceTest extends TestCase {
         tempDir2.mkdirs();
 
         // copy cluster.xml / stores.xml to temp metadata dir.
-        FileUtils.copyFileToDirectory(new File("test/common/voldemort/config/cluster.xml"), tempDir);
         FileUtils.copyFileToDirectory(new File("test/common/voldemort/config/stores.xml"), tempDir);
 
         return config;
@@ -277,9 +296,9 @@ public class AdminServiceTest extends TestCase {
         AdminClient client = new AdminClient(server.getIdentityNode(),
                                              server.getMetaDataStore(),
                                              new SocketPool(100, 100, 2000, 10000));
-        ArrayList<Entry<ByteArray, Versioned<byte[]>>> entryList = client.requestGetPartitionsAsStream(0,
-                                                                                                       storeName,
-                                                                                                       new int[] { 0 });
+        Iterator<Entry<ByteArray, Versioned<byte[]>>> entryIterator = client.requestGetPartitionsAsStream(0,
+                                                                                                          storeName,
+                                                                                                          Arrays.asList(new Integer[] { 0 }));
 
         StoreDefinition storeDef = server.getMetaDataStore().getStore(storeName);
         assertNotSame("StoreDefinition for 'users' should not be nul ", null, storeDef);
@@ -287,7 +306,8 @@ public class AdminServiceTest extends TestCase {
                                                                               .getNodes(),
                                                                         storeDef.getReplicationFactor());
         // assert all entries are right partitions
-        for(Entry<ByteArray, Versioned<byte[]>> entry: entryList) {
+        while(entryIterator.hasNext()) {
+            Entry<ByteArray, Versioned<byte[]>> entry = entryIterator.next();
             checkEntriesForPartitions(entry.getKey().get(),
                                       storeName,
                                       new int[] { 0 },
@@ -295,10 +315,13 @@ public class AdminServiceTest extends TestCase {
         }
 
         // check for two partitions
-        entryList = client.requestGetPartitionsAsStream(0, storeName, new int[] { 0, 1 });
+        entryIterator = client.requestGetPartitionsAsStream(0,
+                                                            storeName,
+                                                            Arrays.asList(new Integer[] { 0, 1 }));
         // assert right partitions returned and both are returned
         Set<Integer> partitionSet2 = new HashSet<Integer>();
-        for(Entry<ByteArray, Versioned<byte[]>> entry: entryList) {
+        while(entryIterator.hasNext()) {
+            Entry<ByteArray, Versioned<byte[]>> entry = entryIterator.next();
             checkEntriesForPartitions(entry.getKey().get(),
                                       storeName,
                                       new int[] { 0, 1 },
@@ -335,7 +358,7 @@ public class AdminServiceTest extends TestCase {
                                              server.getMetaDataStore(),
                                              new SocketPool(100, 100, 2000, 10000));
 
-        client.requestPutEntriesAsStream(0, storeName, entryList);
+        client.requestPutEntriesAsStream(0, storeName, entryList.iterator());
 
         for(int i = 100; i <= 104; i++) {
             assertNotSame("Store should return a valid value",
@@ -374,7 +397,7 @@ public class AdminServiceTest extends TestCase {
 
         // lets make a new server
         VoldemortConfig config2 = createServerConfig(1);
-        VoldemortServer server2 = new VoldemortServer(config2);
+        VoldemortServer server2 = new VoldemortServer(config2, cluster);
         server2.start();
 
         // assert server2 is missing all keys

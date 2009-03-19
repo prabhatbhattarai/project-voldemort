@@ -21,6 +21,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -44,6 +45,8 @@ import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
+
+import com.google.common.collect.AbstractIterator;
 
 /**
  * The client implementation for Admin Client hides socket level details from
@@ -116,15 +119,15 @@ public class AdminClient {
         }
     }
 
-    public ArrayList<Entry<ByteArray, Versioned<byte[]>>> requestGetPartitionsAsStream(int nodeId,
-                                                                                       String storeName,
-                                                                                       int[] partitionList)
+    public AbstractIterator<Entry<ByteArray, Versioned<byte[]>>> requestGetPartitionsAsStream(int nodeId,
+                                                                                              String storeName,
+                                                                                              List<Integer> partitionList)
             throws VoldemortException {
-        ArrayList<Entry<ByteArray, Versioned<byte[]>>> entryList = new ArrayList<Entry<ByteArray, Versioned<byte[]>>>();
         Node node = metadataStore.getCluster().getNodeById(nodeId);
 
-        SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
-        SocketAndStreams sands = pool.checkout(destination);
+        final SocketDestination destination = new SocketDestination(node.getHost(),
+                                                                    node.getAdminPort());
+        final SocketAndStreams sands = pool.checkout(destination);
         try {
             // get these partitions from the node for store
             DataOutputStream getOutputStream = sands.getOutputStream();
@@ -132,49 +135,60 @@ public class AdminClient {
             // send request for get Partition List
             getOutputStream.writeByte(VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE);
             getOutputStream.writeUTF(storeName);
-            getOutputStream.writeInt(partitionList.length);
+            getOutputStream.writeInt(partitionList.size());
             for(Integer p: partitionList) {
                 getOutputStream.writeInt(p.intValue());
             }
             getOutputStream.flush();
 
-            // read values
-            DataInputStream inputStream = sands.getInputStream();
-
-            checkException(inputStream);
-            int keySize = inputStream.readInt();
-            while(keySize != -1) {
-                byte[] key = new byte[keySize];
-                ByteUtils.read(inputStream, key);
-
-                int valueSize = inputStream.readInt();
-                byte[] value = new byte[valueSize];
-                ByteUtils.read(inputStream, value);
-
-                VectorClock clock = new VectorClock(value);
-                Versioned<byte[]> versionedValue = new Versioned<byte[]>(ByteUtils.copy(value,
-                                                                                        clock.sizeInBytes(),
-                                                                                        value.length),
-                                                                         clock);
-                entryList.add(new Entry<ByteArray, Versioned<byte[]>>(new ByteArray(key),
-                                                                      versionedValue));
-
-                checkException(inputStream);
-                keySize = inputStream.readInt();
-            }
-
         } catch(IOException e) {
             close(sands.getSocket());
             throw new VoldemortException(e);
-        } finally {
-            pool.checkin(destination, sands);
         }
-        return entryList;
+
+        // read values
+        final DataInputStream inputStream = sands.getInputStream();
+
+        return new AbstractIterator<Entry<ByteArray, Versioned<byte[]>>>() {
+
+            @Override
+            protected Entry<ByteArray, Versioned<byte[]>> computeNext() {
+                try {
+                    checkException(inputStream);
+
+                    int keySize = inputStream.readInt();
+                    if(keySize == -1) {
+                        pool.checkin(destination, sands);
+                        return endOfData();
+                    } else {
+                        byte[] key = new byte[keySize];
+                        ByteUtils.read(inputStream, key);
+
+                        int valueSize = inputStream.readInt();
+                        byte[] value = new byte[valueSize];
+                        ByteUtils.read(inputStream, value);
+
+                        VectorClock clock = new VectorClock(value);
+                        Versioned<byte[]> versionedValue = new Versioned<byte[]>(ByteUtils.copy(value,
+                                                                                                clock.sizeInBytes(),
+                                                                                                value.length),
+                                                                                 clock);
+                        return new Entry<ByteArray, Versioned<byte[]>>(new ByteArray(key),
+                                                                       versionedValue);
+                    }
+
+                } catch(IOException e) {
+                    close(sands.getSocket());
+                    pool.checkin(destination, sands);
+                    throw new VoldemortException(e);
+                }
+            }
+        };
     }
 
     public void requestPutEntriesAsStream(int nodeId,
                                           String storeName,
-                                          ArrayList<Entry<ByteArray, Versioned<byte[]>>> entryList)
+                                          Iterator<Entry<ByteArray, Versioned<byte[]>>> entryIterator)
             throws VoldemortException, IOException {
         Node node = metadataStore.getCluster().getNodeById(nodeId);
 
@@ -190,8 +204,8 @@ public class AdminClient {
             outputStream.writeUTF(storeName);
             outputStream.flush();
 
-            for(Entry<ByteArray, Versioned<byte[]>> entry: entryList) {
-
+            while(entryIterator.hasNext()) {
+                Entry<ByteArray, Versioned<byte[]>> entry = entryIterator.next();
                 outputStream.writeInt(entry.getKey().length());
                 outputStream.write(entry.getKey().get());
 
@@ -515,72 +529,9 @@ public class AdminClient {
                                      int putNodeId,
                                      String storeName,
                                      List<Integer> stealList) throws IOException {
-        Cluster currentCluster = metadataStore.getCluster();
-
-        Node getNode = currentCluster.getNodeById(getNodeId);
-        Node putNode = currentCluster.getNodeById(putNodeId);
-
-        SocketDestination getDestination = new SocketDestination(getNode.getHost(),
-                                                                 getNode.getAdminPort());
-        SocketDestination putDestination = new SocketDestination(putNode.getHost(),
-                                                                 putNode.getAdminPort());
-
-        SocketAndStreams sands = pool.checkout(getDestination);
-        SocketAndStreams sands2 = pool.checkout(putDestination);
-
-        DataOutputStream putOutputStream = sands2.getOutputStream();
-        DataInputStream putInputStream = sands2.getInputStream();
-        try {
-            // get these partitions from the node for store
-
-            // send request for get Partition List
-            DataOutputStream getOutputStream = sands.getOutputStream();
-
-            // send request for get Partition List
-            getOutputStream.writeByte(VoldemortOpCode.GET_PARTITION_AS_STREAM_OP_CODE);
-            getOutputStream.writeUTF(storeName);
-            getOutputStream.writeInt(stealList.size());
-            for(Integer p: stealList) {
-                getOutputStream.writeInt(p.intValue());
-            }
-            getOutputStream.flush();
-
-            // send request for putPartition
-            putOutputStream.writeByte(VoldemortOpCode.PUT_ENTRIES_AS_STREAM_OP_CODE);
-            putOutputStream.writeUTF(storeName);
-            putOutputStream.flush();
-
-            DataInputStream getInputStream = sands.getInputStream();
-            // pipe Get Data to Put Stream
-            checkException(getInputStream);
-            int keySize = getInputStream.readInt();
-            while(keySize != -1) {
-                putOutputStream.writeInt(keySize);
-                byte[] key = new byte[keySize];
-                ByteUtils.read(getInputStream, key);
-                putOutputStream.write(key);
-
-                int valueSize = getInputStream.readInt();
-                putOutputStream.writeInt(valueSize);
-                byte[] value = new byte[valueSize];
-                ByteUtils.read(getInputStream, value);
-                putOutputStream.write(value);
-
-                checkException(getInputStream);
-                keySize = getInputStream.readInt();
-            }
-            putOutputStream.writeInt(-1); // end this stream here
-            putOutputStream.flush();
-
-        } catch(IOException e) {
-            close(sands.getSocket());
-            close(sands2.getSocket());
-            throw new VoldemortException(e);
-        } finally {
-            checkException(putInputStream);
-            pool.checkin(getDestination, sands);
-            pool.checkin(putDestination, sands2);
-        }
+        requestPutEntriesAsStream(putNodeId, storeName, requestGetPartitionsAsStream(getNodeId,
+                                                                                     storeName,
+                                                                                     stealList));
     }
 
     private List<Integer> getStealList(Cluster old, Cluster updated, int fromNode, int toNode) {
