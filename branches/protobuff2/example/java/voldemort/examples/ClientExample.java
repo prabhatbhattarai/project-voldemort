@@ -27,10 +27,6 @@ public class ClientExample {
     public static void main(String[] args) {
 
         // In real life this stuff would get wired in
-        int numThreads = 10;
-        int maxQueuedRequests = 10;
-        int maxConnectionsPerNode = 10;
-        int maxTotalConnections = 100;
         String bootstrapUrl = "tcp://localhost:6666";
         StoreClientFactory factory = new SocketStoreClientFactory(new ClientConfig().setBootstrapUrls(bootstrapUrl));
 
