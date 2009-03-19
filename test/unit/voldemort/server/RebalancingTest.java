@@ -46,6 +46,8 @@ import voldemort.versioning.Versioned;
 public class RebalancingTest extends TestCase {
 
     private static String TEMP_DIR = "test/unit/temp-output";
+    private static String storeName = "test-replication-1";
+
     VoldemortServer server1;
     VoldemortServer server2;
 
@@ -90,14 +92,12 @@ public class RebalancingTest extends TestCase {
     }
 
     public void testStealPartitions() throws IOException {
-        String storeName = "test-replication-1";
-
         // enter data into server 1 & 2
         for(int i = 1; i <= 1000; i++) {
             byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
             byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
 
-            loadEntry(key, value, storeName);
+            loadEntry(new ByteArray(key), value, storeName);
         }
 
         // Add a new node to cluster config with blank partition List
@@ -115,30 +115,41 @@ public class RebalancingTest extends TestCase {
                                              new SocketPool(100, 100, 2000, 10000));
         // persist updated Cluster to metadata here
         client.updateClusterMetaData(2, updatedCluster, MetadataStore.CLUSTER_KEY);
+
         client.stealPartitionsFromCluster(2, storeName);
 
         Store<ByteArray, byte[]> store3 = server3.getStoreMap().get(storeName);
+        store3.put(new ByteArray("server3-test-key".getBytes()),
+                   new Versioned<byte[]>("test-entry".getBytes()));
+        assertEquals("put should pass for InMemoryStore",
+                     "test-entry",
+                     new String(store3.get(new ByteArray("server3-test-key".getBytes()))
+                                      .get(0)
+                                      .getValue()));
 
-        int matched = 0;
+        RoutingStrategy routingStrategy = new ConsistentRoutingStrategy(server3.getCluster()
+                                                                               .getNodes(), 1);
+
+        // check all keys are present in new Store
         for(int i = 0; i <= 1000; i++) {
             ByteArray key = new ByteArray(ByteUtils.getBytes("" + i, "UTF-8"));
             byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
 
-            if(store3.get(key).size() > 0) {
-                matched++;
+            Node node = routingStrategy.routeRequest(key.get()).get(0);
+            if(node.getId() == 2) {
+                assertEquals("key for partition belonging to new node should be present",
+                             new String(value),
+                             new String(store3.get(key).get(0).getValue()));
             }
         }
 
-        assertEquals("Atleast one key value should be returned", true, matched > 0);
-        assertEquals("Atleast 1/5th of keys should be there", true, matched > 200);
-        assertEquals("Atmost 1/3 total keys should be returned", true, matched < 350);
+        // check all Store keys belong to new node partition only
+        // TODO
 
         server3.stop();
     }
 
     public void testDonatePartitions() throws IOException {
-        String storeName = "test-replication-1";
-
         // Add a new node to cluster config with blank partition List
         List<Node> nodes = new ArrayList<Node>(server1.getCluster().getNodes());
         nodes.add(new Node(2, "localhost", 8083, 6669, 7779, new ArrayList<Integer>()));
@@ -149,7 +160,7 @@ public class RebalancingTest extends TestCase {
             byte[] key = ByteUtils.getBytes("" + i, "UTF-8");
             byte[] value = ByteUtils.getBytes("value-" + i, "UTF-8");
 
-            loadEntry(key, value, storeName);
+            loadEntry(new ByteArray(key), value, storeName);
         }
 
         VoldemortConfig config = createServerConfig(2);
@@ -182,19 +193,19 @@ public class RebalancingTest extends TestCase {
         server3.stop();
     }
 
-    private void loadEntry(byte[] key, byte[] value, String storeName) {
+    private void loadEntry(ByteArray key, byte[] value, String storeName) {
         RoutingStrategy routingStrategy = new ConsistentRoutingStrategy(server1.getCluster()
                                                                                .getNodes(), 1);
-        Node node = routingStrategy.routeRequest(key).get(0);
+        Node node = routingStrategy.routeRequest(key.get()).get(0);
 
         switch(node.getId()) {
             case 0:
                 Store<ByteArray, byte[]> store1 = server1.getStoreMap().get(storeName);
-                store1.put(new ByteArray(key), new Versioned<byte[]>(value));
+                store1.put(new ByteArray(key.get()), new Versioned<byte[]>(value));
                 break;
             case 1:
                 Store<ByteArray, byte[]> store2 = server2.getStoreMap().get(storeName);
-                store2.put(new ByteArray(key), new Versioned<byte[]>(value));
+                store2.put(new ByteArray(key.get()), new Versioned<byte[]>(value));
                 break;
         }
     }

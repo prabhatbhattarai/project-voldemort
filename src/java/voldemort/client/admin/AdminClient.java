@@ -240,6 +240,12 @@ public class AdminClient {
      * </li>
      * <li>Set Current Server state as {@link SERVER_STATE#NORMAL_STATE}</li>
      * </ul>
+     * <p>
+     * TODO: HIGH Failure Scenarios
+     * <ul>
+     * <li>StealerNode dies</li>
+     * <li>DonorNode dies</li>
+     * </ul>
      * 
      * @throws IOException
      */
@@ -259,29 +265,47 @@ public class AdminClient {
 
         Cluster updatedCluster = ClusterUtils.updateClusterStealPartitions(currentCluster,
                                                                            stealerNode);
+        try {
+            for(Node donorNode: currentCluster.getNodes()) {
+                if(donorNode.getId() != stealerNodeId) {
+                    List<Integer> stealList = getStealList(currentCluster,
+                                                           updatedCluster,
+                                                           donorNode.getId(),
+                                                           stealerNodeId);
+                    logger.info("Node(" + currentNode.getId() + ") Stealing from node:"
+                                + donorNode.getId() + " stealList:" + stealList);
 
-        for(Node node: currentCluster.getNodes()) {
-            if(node.getId() != stealerNodeId) {
-                logger.info("Node(" + currentNode.getId() + ") Stealing from node:" + node.getId());
+                    if(stealList.size() > 0) {
+                        Cluster tempCluster = getTempCluster(currentCluster,
+                                                             donorNode,
+                                                             stealerNode,
+                                                             stealList);
 
-                List<Integer> stealList = getStealList(currentCluster,
-                                                       updatedCluster,
-                                                       node.getId(),
-                                                       stealerNodeId);
+                        logger.info("tempCluster:" + ClusterUtils.GetClusterAsString(tempCluster));
 
-                Cluster tempCluster = getTempCluster(currentCluster, node, stealerNode, stealList);
-
-                for(Node tempNode: updatedCluster.getNodes()) {
-                    updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
+                        // set tempCluster on Donor node and stream partitions
+                        updateClusterMetaData(donorNode.getId(),
+                                              tempCluster,
+                                              MetadataStore.CLUSTER_KEY);
+                        pipeGetAndPutStreams(donorNode.getId(), stealerNodeId, storeName, stealList);
+                    }
                 }
-
-                pipeGetAndPutStreams(node.getId(), stealerNodeId, storeName, stealList);
             }
-        }
-        setNormalStateAndRestart(stealerNode.getId());
-        logger.info("Node(" + currentNode.getId() + ") State changed back to NORMAL MODE");
 
-        logger.info("Node(" + currentNode.getId() + ") Steal process completed.");
+            for(Node node: currentCluster.getNodes()) {
+                updateClusterMetaData(node.getId(), updatedCluster, MetadataStore.CLUSTER_KEY);
+            }
+            setNormalStateAndRestart(stealerNode.getId());
+            logger.info("Node(" + currentNode.getId() + ") State changed back to NORMAL MODE");
+
+            logger.info("Node(" + currentNode.getId() + ") Steal process completed.");
+        } catch(Exception e) {
+            // undo all changes
+            for(Node node: currentCluster.getNodes()) {
+                updateClusterMetaData(node.getId(), updatedCluster, MetadataStore.OLD_CLUSTER_KEY);
+            }
+            throw new VoldemortException("Steal Partitions for " + stealerNodeId + " failed", e);
+        }
     }
 
     /**
