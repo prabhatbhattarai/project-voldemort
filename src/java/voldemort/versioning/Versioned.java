@@ -91,6 +91,14 @@ public final class Versioned<T> implements Serializable {
         return new Versioned<T>(this.getValue(), this.version.clone());
     }
 
+    public static <S> Versioned<S> value(S s) {
+        return new Versioned<S>(s, new VectorClock());
+    }
+
+    public static <S> Versioned<S> value(S s, Version v) {
+        return new Versioned<S>(s, v);
+    }
+
     public static final class HappenedBeforeComparator<S> implements Comparator<Versioned<S>> {
 
         public int compare(Versioned<S> v1, Versioned<S> v2) {

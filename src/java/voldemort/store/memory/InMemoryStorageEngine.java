@@ -59,6 +59,10 @@ public class InMemoryStorageEngine<K, V> implements StorageEngine<K, V> {
 
     public void close() {}
 
+    public void deleteAll() {
+        this.map.clear();
+    }
+
     public boolean delete(K key) {
         return map.remove(key) != null;
     }

@@ -30,10 +30,12 @@ import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.server.VoldemortConfig;
 import voldemort.server.http.StoreServlet;
+import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
 import voldemort.store.http.HttpStore;
@@ -75,21 +77,30 @@ public class ServerTestUtils {
     public static SocketServer getSocketServer(String clusterXml,
                                                String storesXml,
                                                String storeName,
-                                               int port) {
-
-        SocketServer socketServer = new SocketServer(getStores(storeName, clusterXml, storesXml),
-                                                     port,
+                                               int port,
+                                               RequestFormatType type) {
+        RequestHandlerFactory factory = new RequestHandlerFactory(getStores(storeName,
+                                                                                clusterXml,
+                                                                                storesXml),
+                                                                      new ConcurrentHashMap<String, Store<ByteArray, byte[]>>());
+        SocketServer socketServer = new SocketServer(port,
                                                      5,
                                                      10,
-                                                     10000);
+                                                     10000,
+                                                     factory.getRequestHandler(type));
         socketServer.start();
         socketServer.awaitStartupCompletion();
         return socketServer;
     }
 
     public static SocketStore getSocketStore(String storeName, int port) {
-        SocketPool socketPool = new SocketPool(1, 2, 1000, 32 * 1024);
-        return new SocketStore(storeName, "localhost", port, socketPool);
+        SocketPool socketPool = new SocketPool(1, 2, 10000, 1000, 32 * 1024);
+        return new SocketStore(storeName,
+                               "localhost",
+                               port,
+                               socketPool,
+                               RequestFormatType.VOLDEMORT,
+                               false);
     }
 
     public static Context getJettyServer(String clusterXml,

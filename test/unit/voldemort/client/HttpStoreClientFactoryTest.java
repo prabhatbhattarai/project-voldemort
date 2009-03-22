@@ -55,23 +55,14 @@ public class HttpStoreClientFactoryTest extends AbstractStoreClientFactoryTest {
 
     @Override
     protected StoreClientFactory getFactory(String... bootstrapUrls) {
-        return new HttpStoreClientFactory(4, bootstrapUrls);
+        return new HttpStoreClientFactory(new ClientConfig().setBootstrapUrls(bootstrapUrls));
     }
 
     @Override
     protected StoreClientFactory getFactoryWithSerializer(SerializerFactory factory,
                                                           String... bootstrapUrls) {
-        return new HttpStoreClientFactory(3,
-                                          1000,
-                                          1000,
-                                          0,
-                                          1000,
-                                          1000,
-                                          10000,
-                                          10,
-                                          10,
-                                          factory,
-                                          bootstrapUrls);
+        return new HttpStoreClientFactory(new ClientConfig().setSerializerFactory(factory)
+                                                            .setBootstrapUrls(bootstrapUrls));
     }
 
     @Override

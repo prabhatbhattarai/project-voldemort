@@ -22,9 +22,11 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Properties;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.store.bdb.BdbStorageConfiguration;
 import voldemort.store.memory.CacheStorageConfiguration;
 import voldemort.store.memory.InMemoryStorageConfiguration;
+import voldemort.store.mysql.MysqlStorageConfiguration;
 import voldemort.store.readonly.RandomAccessFileStorageConfiguration;
 import voldemort.utils.ConfigurationException;
 import voldemort.utils.Props;
@@ -85,6 +87,8 @@ public class VoldemortConfig implements Serializable {
     private int routingTimeoutMs;
 
     private int schedulerThreads;
+
+    private RequestFormatType requestFormatType;
 
     private boolean enableSlopDetection;
     private boolean enableGui;
@@ -164,12 +168,17 @@ public class VoldemortConfig implements Serializable {
 
         this.storageConfigurations = props.getList("storage.configs",
                                                    ImmutableList.of(BdbStorageConfiguration.class.getName(),
+                                                                    MysqlStorageConfiguration.class.getName(),
                                                                     InMemoryStorageConfiguration.class.getName(),
                                                                     CacheStorageConfiguration.class.getName(),
                                                                     RandomAccessFileStorageConfiguration.class.getName()));
 
         // save props for access from plugins
         this.allProps = props;
+
+        String requestFormatName = props.getString("request.format",
+                                                   RequestFormatType.VOLDEMORT.getName());
+        this.requestFormatType = RequestFormatType.fromName(requestFormatName);
 
         validateParams();
     }
@@ -586,6 +595,14 @@ public class VoldemortConfig implements Serializable {
 
     public Props getAllProps() {
         return this.allProps;
+    }
+
+    public void setRequestFormatType(RequestFormatType type) {
+        this.requestFormatType = type;
+    }
+
+    public RequestFormatType getRequestFormatType() {
+        return this.requestFormatType;
     }
 
 }
