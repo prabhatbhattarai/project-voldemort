@@ -26,8 +26,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executors;
 
+import voldemort.client.ClientConfig;
 import voldemort.client.DefaultStoreClient;
 import voldemort.client.SocketStoreClientFactory;
 import voldemort.client.StoreClientFactory;
@@ -63,13 +63,7 @@ public class VoldemortClientShell {
             Utils.croak("Failure to open input stream: " + e.getMessage());
         }
 
-        StoreClientFactory factory = new SocketStoreClientFactory(Executors.newFixedThreadPool(5),
-                                                                  3,
-                                                                  10,
-                                                                  2000,
-                                                                  2000,
-                                                                  2000,
-                                                                  bootstrapUrl);
+        StoreClientFactory factory = new SocketStoreClientFactory(new ClientConfig().setBootstrapUrls(bootstrapUrl));
         DefaultStoreClient<Object, Object> client = null;
         try {
             client = (DefaultStoreClient<Object, Object>) factory.getStoreClient(storeName);

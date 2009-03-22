@@ -16,23 +16,20 @@
 
 package voldemort.store.socket;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
-import voldemort.serialization.VoldemortOpCode;
-import voldemort.store.ErrorCodeMapper;
+import voldemort.client.protocol.RequestFormat;
+import voldemort.client.protocol.RequestFormatFactory;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.store.Store;
 import voldemort.store.StoreUtils;
 import voldemort.utils.ByteArray;
-import voldemort.utils.ByteUtils;
 import voldemort.utils.Utils;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Version;
@@ -48,16 +45,26 @@ import voldemort.versioning.Versioned;
 public class SocketStore implements Store<ByteArray, byte[]> {
 
     private static final Logger logger = Logger.getLogger(SocketStore.class);
-    private final ErrorCodeMapper errorCodeMapper = new ErrorCodeMapper();
+
+    private final RequestFormatFactory requestFormatFactory = new RequestFormatFactory();
 
     private final String name;
     private final SocketPool pool;
     private final SocketDestination destination;
+    private final RequestFormat requestFormat;
+    private final boolean reroute;
 
-    public SocketStore(String name, String host, int port, SocketPool socketPool) {
-        this.name = name;
-        this.pool = socketPool;
+    public SocketStore(String name,
+                       String host,
+                       int port,
+                       SocketPool socketPool,
+                       RequestFormatType requestFormatType,
+                       boolean reroute) {
+        this.name = Utils.notNull(name);
+        this.pool = Utils.notNull(socketPool);
         this.destination = new SocketDestination(Utils.notNull(host), port);
+        this.requestFormat = requestFormatFactory.getRequestFormat(requestFormatType);
+        this.reroute = reroute;
     }
 
     public void close() throws VoldemortException {
@@ -68,18 +75,13 @@ public class SocketStore implements Store<ByteArray, byte[]> {
         StoreUtils.assertValidKey(key);
         SocketAndStreams sands = pool.checkout(destination);
         try {
-            DataOutputStream outputStream = sands.getOutputStream();
-            outputStream.writeByte(VoldemortOpCode.DELETE_OP_CODE);
-            outputStream.writeUTF(name);
-            outputStream.writeInt(key.length());
-            outputStream.write(key.get());
-            VectorClock clock = (VectorClock) version;
-            outputStream.writeShort(clock.sizeInBytes());
-            outputStream.write(clock.toBytes());
-            outputStream.flush();
-            DataInputStream inputStream = sands.getInputStream();
-            checkException(inputStream);
-            return inputStream.readBoolean();
+            requestFormat.writeDeleteRequest(sands.getOutputStream(),
+                                          name,
+                                          key,
+                                          (VectorClock) version,
+                                          reroute);
+            sands.getOutputStream().flush();
+            return requestFormat.readDeleteResponse(sands.getInputStream());
         } catch(IOException e) {
             close(sands.getSocket());
             throw new VoldemortException(e);
@@ -91,35 +93,11 @@ public class SocketStore implements Store<ByteArray, byte[]> {
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
-        // TODO We can optimise this, but wait for protobuf protocol before
-        // considering
-        return StoreUtils.getAll(this, keys);
-    }
-
-    public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
-        StoreUtils.assertValidKey(key);
         SocketAndStreams sands = pool.checkout(destination);
         try {
-            DataOutputStream outputStream = sands.getOutputStream();
-            outputStream.writeByte(VoldemortOpCode.GET_OP_CODE);
-            outputStream.writeUTF(name);
-            outputStream.writeInt(key.length());
-            outputStream.write(key.get());
-            outputStream.flush();
-            DataInputStream inputStream = sands.getInputStream();
-            checkException(inputStream);
-            int resultSize = inputStream.readInt();
-            List<Versioned<byte[]>> results = new ArrayList<Versioned<byte[]>>(resultSize);
-            for(int i = 0; i < resultSize; i++) {
-                int valueSize = inputStream.readInt();
-                byte[] bytes = new byte[valueSize];
-                ByteUtils.read(inputStream, bytes);
-                VectorClock clock = new VectorClock(bytes);
-                results.add(new Versioned<byte[]>(ByteUtils.copy(bytes,
-                                                                 clock.sizeInBytes(),
-                                                                 bytes.length), clock));
-            }
-            return results;
+            requestFormat.writeGetAllRequest(sands.getOutputStream(), name, keys, reroute);
+            sands.getOutputStream().flush();
+            return requestFormat.readGetAllResponse(sands.getInputStream());
         } catch(IOException e) {
             close(sands.getSocket());
             throw new VoldemortException(e);
@@ -128,22 +106,33 @@ public class SocketStore implements Store<ByteArray, byte[]> {
         }
     }
 
-    public void put(ByteArray key, Versioned<byte[]> value) throws VoldemortException {
+    public List<Versioned<byte[]>> get(ByteArray key) throws VoldemortException {
         StoreUtils.assertValidKey(key);
         SocketAndStreams sands = pool.checkout(destination);
         try {
-            DataOutputStream outputStream = sands.getOutputStream();
-            outputStream.writeByte(VoldemortOpCode.PUT_OP_CODE);
-            outputStream.writeUTF(name);
-            outputStream.writeInt(key.length());
-            outputStream.write(key.get());
-            VectorClock clock = (VectorClock) value.getVersion();
-            outputStream.writeInt(value.getValue().length + clock.sizeInBytes());
-            outputStream.write(clock.toBytes());
-            outputStream.write(value.getValue());
-            outputStream.flush();
-            DataInputStream inputStream = sands.getInputStream();
-            checkException(inputStream);
+            requestFormat.writeGetRequest(sands.getOutputStream(), name, key, reroute);
+            sands.getOutputStream().flush();
+            return requestFormat.readGetResponse(sands.getInputStream());
+        } catch(IOException e) {
+            close(sands.getSocket());
+            throw new VoldemortException(e);
+        } finally {
+            pool.checkin(destination, sands);
+        }
+    }
+
+    public void put(ByteArray key, Versioned<byte[]> versioned) throws VoldemortException {
+        StoreUtils.assertValidKey(key);
+        SocketAndStreams sands = pool.checkout(destination);
+        try {
+            requestFormat.writePutRequest(sands.getOutputStream(),
+                                       name,
+                                       key,
+                                       versioned.getValue(),
+                                       (VectorClock) versioned.getVersion(),
+                                       reroute);
+            sands.getOutputStream().flush();
+            requestFormat.readPutResponse(sands.getInputStream());
         } catch(IOException e) {
             close(sands.getSocket());
             throw new VoldemortException(e);
@@ -154,14 +143,6 @@ public class SocketStore implements Store<ByteArray, byte[]> {
 
     public String getName() {
         return name;
-    }
-
-    private void checkException(DataInputStream inputStream) throws IOException {
-        short retCode = inputStream.readShort();
-        if(retCode != 0) {
-            String error = inputStream.readUTF();
-            throw errorCodeMapper.getError(retCode, error);
-        }
     }
 
     private void close(Socket socket) {

@@ -17,6 +17,7 @@
 package voldemort.server.socket;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
 import voldemort.ServerTestUtils;
+import voldemort.server.protocol.vold.VoldemortNativeRequestHandler;
+import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
 import voldemort.store.socket.SocketAndStreams;
 import voldemort.store.socket.SocketDestination;
@@ -31,6 +34,8 @@ import voldemort.store.socket.SocketPool;
 import voldemort.utils.ByteArray;
 
 /**
+ * Tests for the socket pooling
+ * 
  * @author jay
  * 
  */
@@ -51,19 +56,27 @@ public class SocketPoolTest extends TestCase {
         int[] ports = ServerTestUtils.findFreePorts(2);
         this.port1 = ports[0];
         this.port2 = ports[1];
-        this.pool = new SocketPool(maxConnectionsPerNode, maxTotalConnections, 1000, 32 * 1024);
+        this.pool = new SocketPool(maxConnectionsPerNode,
+                                   maxTotalConnections,
+                                   1000,
+                                   1000,
+                                   32 * 1024);
         this.dest1 = new SocketDestination("localhost", port1);
         this.dest2 = new SocketDestination("localhost", port2);
-        this.server1 = new SocketServer(new ConcurrentHashMap<String, Store<ByteArray, byte[]>>(),
-                                        port1,
+        ConcurrentMap<String, Store<ByteArray, byte[]>> m = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
+        VoldemortNativeRequestHandler requestHandler = new VoldemortNativeRequestHandler(new ErrorCodeMapper(),
+                                                                                         m,
+                                                                                         m);
+        this.server1 = new SocketServer(port1,
                                         maxTotalConnections,
                                         maxTotalConnections + 3,
-                                        10000);
-        this.server2 = new SocketServer(new ConcurrentHashMap<String, Store<ByteArray, byte[]>>(),
-                                        port2,
+                                        10000,
+                                        requestHandler);
+        this.server2 = new SocketServer(port2,
                                         maxTotalConnections,
                                         maxTotalConnections + 3,
-                                        10000);
+                                        10000,
+                                        requestHandler);
         this.server1.start();
         this.server1.awaitStartupCompletion();
         this.server2.start();

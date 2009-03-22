@@ -144,7 +144,6 @@ public class HttpStore implements Store<ByteArray, byte[]> {
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys)
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
-        // TODO Consider retrieving the keys concurrently.
         return StoreUtils.getAll(this, keys);
     }
 

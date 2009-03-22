@@ -29,7 +29,9 @@ import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 import org.apache.commons.httpclient.params.HttpMethodParams;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.server.http.HttpService;
+import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
 import voldemort.store.http.HttpStore;
@@ -88,9 +90,19 @@ public class RemoteStoreComparisonTest {
         String storeName = "test";
         ConcurrentMap<String, Store<ByteArray, byte[]>> stores = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>(1);
         stores.put(storeName, new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
-        SocketPool socketPool = new SocketPool(10, 10, 1000, 32 * 1024);
-        final SocketStore socketStore = new SocketStore(storeName, "localhost", 6666, socketPool);
-        SocketServer socketServer = new SocketServer(stores, 6666, 50, 50, 1000);
+        SocketPool socketPool = new SocketPool(10, 10, 1000, 1000, 32 * 1024);
+        final SocketStore socketStore = new SocketStore(storeName,
+                                                        "localhost",
+                                                        6666,
+                                                        socketPool,
+                                                        RequestFormatType.VOLDEMORT,
+                                                        false);
+        RequestHandlerFactory factory = new RequestHandlerFactory(stores, stores);
+        SocketServer socketServer = new SocketServer(6666,
+                                                     50,
+                                                     50,
+                                                     1000,
+                                                     factory.getRequestHandler(RequestFormatType.VOLDEMORT));
         socketServer.start();
         socketServer.awaitStartupCompletion();
 

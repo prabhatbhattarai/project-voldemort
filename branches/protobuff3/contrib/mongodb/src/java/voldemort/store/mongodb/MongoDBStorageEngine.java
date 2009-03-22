@@ -29,9 +29,9 @@ import org.mongodb.driver.ts.DB;
 import org.mongodb.driver.ts.DBCollection;
 import org.mongodb.driver.ts.DBCursor;
 import org.mongodb.driver.ts.Doc;
+import org.mongodb.driver.ts.IndexInfo;
 import org.mongodb.driver.ts.Mongo;
 import org.mongodb.driver.ts.MongoSelector;
-import org.mongodb.driver.ts.IndexInfo;
 import org.mongodb.driver.util.BSONObject;
 import org.mongodb.driver.util.types.BSONBytes;
 
@@ -94,25 +94,25 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
     public static final String VALUE = "v";
     public static final String DB_NAME = "voldemort";
 
-    protected Mongo _mongoDB;
-    protected DB _db;
-    protected DBCollection _coll;
-    protected final String _collectionName;
+    protected Mongo mongoDb;
+    protected DB db;
+    protected DBCollection coll;
+    protected final String collectionName;
 
     public MongoDBStorageEngine(String name) throws MongoDBException {
         logger.info("MongoDB Storage Engine : v0.1");
-        _collectionName = name;
+        collectionName = name;
         init();
     }
 
-    protected final void  init() throws MongoDBException {
-        _mongoDB = new Mongo("127.0.0.1", 27017);
-        _db = _mongoDB.getDB(DB_NAME);
-        _coll = _db.getCollection(_collectionName);
+    protected final void init() throws MongoDBException {
+        mongoDb = new Mongo("127.0.0.1", 27017);
+        db = mongoDb.getDB(DB_NAME);
+        coll = db.getCollection(collectionName);
 
-        _coll.createIndex(new IndexInfo("k_1", KEY));
+        coll.createIndex(new IndexInfo("k_1", KEY));
     }
-    
+
     public ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> entries() {
         try {
             return new MongoDBClosableIterator();
@@ -133,7 +133,7 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
         String strKey = new String(key.get());
         DBCursor cur = null;
         try {
-            cur = _coll.find(new MongoSelector(KEY, strKey));
+            cur = coll.find(new MongoSelector(KEY, strKey));
             for(Doc d: cur) {
 
                 BSONObject bo = new BSONObject(tls.getReadBuffer());
@@ -142,11 +142,10 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
                                                               new VectorClock(d.getBytes(CLOCK)));
                 list.add(val);
             }
-        } catch (MongoDBIOException mioe) {
+        } catch(MongoDBIOException mioe) {
             try {
                 init();
-            }
-            catch(MongoDBException ee) {
+            } catch(MongoDBException ee) {
                 ee.printStackTrace();
             }
             throw new VoldemortException(mioe);
@@ -192,7 +191,7 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
              * and also delete them
              */
 
-            cur = _coll.find(new Doc(KEY, strKey));
+            cur = coll.find(new Doc(KEY, strKey));
 
             for(Doc d: cur) {
 
@@ -203,9 +202,8 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
 
                 if(occured == Occured.BEFORE) {
                     throw new ObsoleteVersionException("Key '" + strKey + " is obsolete.");
-                }
-                else if(occured == Occured.AFTER) {
-                    _coll.remove(new MongoSelector(d));
+                } else if(occured == Occured.AFTER) {
+                    coll.remove(new MongoSelector(d));
                 }
 
                 // TODO - why not concurrent? need to understand better...
@@ -219,12 +217,11 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
             newData.put(VALUE, new BSONBytes(value.getValue()));
             newData.put(CLOCK, ((VectorClock) value.getVersion()).toBytes());
 
-            _coll.insert(newData);
-        } catch (MongoDBIOException mioe) {
+            coll.insert(newData);
+        } catch(MongoDBIOException mioe) {
             try {
                 init();
-            }
-            catch(MongoDBException ee) {
+            } catch(MongoDBException ee) {
                 ee.printStackTrace();
             }
             throw new VoldemortException(mioe);
@@ -242,24 +239,23 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
         boolean deleted = false;
         DBCursor cur = null;
         try {
-            cur = _coll.find(new Doc(KEY, strKey));
+            cur = coll.find(new Doc(KEY, strKey));
             for(Doc d: cur) {
                 VectorClock existingClock = new VectorClock(d.getBytes(CLOCK));
                 Occured occured = version.compare(existingClock);
 
                 // TODO - Q : why not concurrently?
                 if(occured == Occured.BEFORE) {
-                    _coll.remove(new MongoSelector(d));
+                    coll.remove(new MongoSelector(d));
                     deleted = true;
                 }
             }
 
             return deleted;
-        } catch (MongoDBIOException mioe) {
+        } catch(MongoDBIOException mioe) {
             try {
                 init();
-            }
-            catch(MongoDBException ee) {
+            } catch(MongoDBException ee) {
                 ee.printStackTrace();
             }
             throw new VoldemortException(mioe);
@@ -271,13 +267,13 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
     }
 
     public String getName() {
-        return _coll.getName();
+        return coll.getName();
     }
 
     public void close() throws VoldemortException {
         try {
-            if(_db != null)
-                _db.close();
+            if(db != null)
+                db.close();
         } catch(Exception e) {
             throw new VoldemortException(e);
         }
@@ -289,7 +285,7 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
      */
     protected void clearStore() {
         try {
-            _coll.clear();
+            coll.clear();
         } catch(MongoDBException e) {
             logger.error("Error while clearing store.", e);
         }
@@ -316,7 +312,7 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
      * Driver was designed w/ a set of expectations for threading and therefore
      * buffer management (for perf reasons) that don't exactly align w/ the use
      * case here
-     *
+     * 
      * @return the current TLS
      */
     private DirectBufferTLS getTLS() {
@@ -332,29 +328,30 @@ public class MongoDBStorageEngine implements StorageEngine<ByteArray, byte[]> {
     public class MongoDBClosableIterator implements
             ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> {
 
-        BSONObject _bo = new BSONObject();
-        protected DBCursor _cursor;
+        BSONObject bo = new BSONObject();
+        protected DBCursor cursor;
 
         public MongoDBClosableIterator() throws MongoDBException {
-            getTLS(); // TODO - will be a problem if someone hands this iterator across threads
-            _cursor = _coll.find();
+            getTLS(); // TODO - will be a problem if someone hands this iterator
+            // across threads
+            cursor = coll.find();
         }
 
         public void close() {
-            closeCursor(_cursor);
-            _cursor = null;
+            closeCursor(cursor);
+            cursor = null;
         }
 
         public boolean hasNext() {
-            return _cursor.hasMoreElements();
+            return cursor.hasMoreElements();
         }
 
         public Pair<ByteArray, Versioned<byte[]>> next() {
             try {
-                Doc d = _cursor.getNextObject();
-                _bo.serialize(d.getDoc(VALUE));
+                Doc d = cursor.getNextObject();
+                bo.serialize(d.getDoc(VALUE));
 
-                Versioned<byte[]> val = new Versioned<byte[]>(_bo.toArray(),
+                Versioned<byte[]> val = new Versioned<byte[]>(bo.toArray(),
                                                               new VectorClock(d.getBytes(CLOCK)));
 
                 return new Pair<ByteArray, Versioned<byte[]>>(new ByteArray(d.getString(KEY)

@@ -32,6 +32,8 @@ import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.server.http.HttpService;
 import voldemort.server.jmx.JmxService;
+import voldemort.server.protocol.RequestHandler;
+import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.scheduler.SchedulerService;
 import voldemort.server.socket.SocketService;
 import voldemort.server.storage.StorageService;
@@ -97,9 +99,12 @@ public class VoldemortServer extends AbstractService {
                                          this,
                                          voldemortConfig.getMaxThreads(),
                                          identityNode.getHttpPort()));
+        // todo: properly wire local/routed map
+        RequestHandler requestHandler = new RequestHandlerFactory(this.storeMap,
+                                                                              this.storeMap).getRequestHandler(voldemortConfig.getRequestFormatType());
         if(voldemortConfig.isSocketServerEnabled())
             services.add(new SocketService("socket-service",
-                                           storeMap,
+                                           requestHandler,
                                            identityNode.getSocketPort(),
                                            voldemortConfig.getCoreThreads(),
                                            voldemortConfig.getMaxThreads(),
