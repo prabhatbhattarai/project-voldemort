@@ -1,4 +1,4 @@
-package voldemort.protocol;
+package voldemort.client.protocol;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -10,7 +10,15 @@ import voldemort.utils.ByteArray;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
-public interface ClientWireFormat {
+/**
+ * Abstracts the serialization mechanism used to write a client request. The
+ * companion class on the server side is
+ * {@link voldemort.server.protocol.RequestHandler}
+ * 
+ * @author jay
+ * 
+ */
+public interface RequestFormat {
 
     public void writeGetRequest(DataOutputStream output,
                                 String storeName,

@@ -13,6 +13,11 @@ import java.util.concurrent.ConcurrentMap;
 import junit.framework.TestCase;
 import voldemort.TestUtils;
 import voldemort.VoldemortException;
+import voldemort.client.protocol.RequestFormat;
+import voldemort.client.protocol.RequestFormatFactory;
+import voldemort.client.protocol.RequestFormatType;
+import voldemort.server.protocol.RequestHandler;
+import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.store.StorageEngine;
 import voldemort.store.memory.InMemoryStorageEngine;
 import voldemort.utils.ByteArray;
@@ -20,20 +25,20 @@ import voldemort.versioning.ObsoleteVersionException;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
-public abstract class AbstractWireFormatTest extends TestCase {
+public abstract class AbstractRequestFormatTest extends TestCase {
 
     private final String storeName;
-    private final ClientWireFormat clientWireFormat;
-    private final ServerWireFormat serverWireFormat;
+    private final RequestFormat clientWireFormat;
+    private final RequestHandler serverWireFormat;
     private final InMemoryStorageEngine<ByteArray, byte[]> store;
 
-    public AbstractWireFormatTest(WireFormatType type) {
+    public AbstractRequestFormatTest(RequestFormatType type) {
         this.storeName = "test";
         ConcurrentMap<String, StorageEngine<ByteArray, byte[]>> stores = new ConcurrentHashMap<String, StorageEngine<ByteArray, byte[]>>();
         this.store = new InMemoryStorageEngine<ByteArray, byte[]>(storeName);
         stores.put("test", store);
-        this.clientWireFormat = new ClientWireFormatFactory().getWireFormat(type);
-        this.serverWireFormat = new ServerWireFormatFactory(stores, stores).getWireFormat(type);
+        this.clientWireFormat = new RequestFormatFactory().getRequestFormat(type);
+        this.serverWireFormat = new RequestHandlerFactory(stores, stores).getRequestHandler(type);
     }
 
     public void testNullKeys() throws Exception {

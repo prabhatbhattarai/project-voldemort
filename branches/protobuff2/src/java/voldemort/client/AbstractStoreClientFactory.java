@@ -26,9 +26,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
-import voldemort.protocol.WireFormatType;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.Serializer;
@@ -114,7 +114,7 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
             Store<ByteArray, byte[]> store = getStore(storeDef.getName(),
                                                       node.getHost(),
                                                       getPort(node),
-                                                      WireFormatType.VOLDEMORT);
+                                                      RequestFormatType.VOLDEMORT);
             store = new LoggingStore(store);
             clientMapping.put(node.getId(), store);
         }
@@ -160,7 +160,7 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
                 Store<ByteArray, byte[]> remoteStore = getStore(MetadataStore.METADATA_STORE_NAME,
                                                                 url.getHost(),
                                                                 url.getPort(),
-                                                                WireFormatType.VOLDEMORT);
+                                                                RequestFormatType.VOLDEMORT);
                 Store<String, String> store = new SerializingStore<String, String>(remoteStore,
                                                                                    new StringSerializer("UTF-8"),
                                                                                    new StringSerializer("UTF-8"));
@@ -206,7 +206,7 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
     protected abstract Store<ByteArray, byte[]> getStore(String storeName,
                                                          String host,
                                                          int port,
-                                                         WireFormatType type);
+                                                         RequestFormatType type);
 
     protected abstract int getPort(Node node);
 

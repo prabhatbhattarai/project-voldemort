@@ -30,12 +30,12 @@ import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
-import voldemort.protocol.ServerWireFormatFactory;
-import voldemort.protocol.WireFormatType;
 import voldemort.server.VoldemortConfig;
 import voldemort.server.http.StoreServlet;
+import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
 import voldemort.store.http.HttpStore;
@@ -78,8 +78,8 @@ public class ServerTestUtils {
                                                String storesXml,
                                                String storeName,
                                                int port,
-                                               WireFormatType type) {
-        ServerWireFormatFactory factory = new ServerWireFormatFactory(getStores(storeName,
+                                               RequestFormatType type) {
+        RequestHandlerFactory factory = new RequestHandlerFactory(getStores(storeName,
                                                                                 clusterXml,
                                                                                 storesXml),
                                                                       new ConcurrentHashMap<String, Store<ByteArray, byte[]>>());
@@ -87,7 +87,7 @@ public class ServerTestUtils {
                                                      5,
                                                      10,
                                                      10000,
-                                                     factory.getWireFormat(type));
+                                                     factory.getRequestHandler(type));
         socketServer.start();
         socketServer.awaitStartupCompletion();
         return socketServer;
@@ -99,7 +99,7 @@ public class ServerTestUtils {
                                "localhost",
                                port,
                                socketPool,
-                               WireFormatType.VOLDEMORT,
+                               RequestFormatType.VOLDEMORT,
                                false);
     }
 

@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
 import voldemort.ServerTestUtils;
-import voldemort.protocol.vold.VoldemortNativeServerWireFormat;
+import voldemort.server.protocol.vold.VoldemortNativeRequestHandler;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
 import voldemort.store.socket.SocketAndStreams;
@@ -60,14 +60,14 @@ public class SocketPoolTest extends TestCase {
         this.dest1 = new SocketDestination("localhost", port1);
         this.dest2 = new SocketDestination("localhost", port1);
         ConcurrentMap<String, Store<ByteArray, byte[]>> m = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
-        VoldemortNativeServerWireFormat wireFormat = new VoldemortNativeServerWireFormat(new ErrorCodeMapper(),
+        VoldemortNativeRequestHandler requestHandler = new VoldemortNativeRequestHandler(new ErrorCodeMapper(),
                                                                                          m,
                                                                                          m);
         this.server = new SocketServer(port1,
                                        maxTotalConnections,
                                        maxTotalConnections + 3,
                                        10000,
-                                       wireFormat);
+                                       requestHandler);
         this.server.start();
         this.server.awaitStartupCompletion();
     }

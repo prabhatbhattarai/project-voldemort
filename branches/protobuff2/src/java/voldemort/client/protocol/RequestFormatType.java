@@ -1,12 +1,18 @@
-package voldemort.protocol;
+package voldemort.client.protocol;
 
-public enum WireFormatType {
+/**
+ * An enumeration of request serialization types
+ * 
+ * @author jay
+ * 
+ */
+public enum RequestFormatType {
     VOLDEMORT("vold"),
     PROTOCOL_BUFFERS("pb");
 
     private final String name;
 
-    private WireFormatType(String name) {
+    private RequestFormatType(String name) {
         this.name = name;
     }
 
@@ -14,8 +20,8 @@ public enum WireFormatType {
         return name;
     }
 
-    public static WireFormatType fromName(String name) {
-        for(WireFormatType type: WireFormatType.values())
+    public static RequestFormatType fromName(String name) {
+        for(RequestFormatType type: RequestFormatType.values())
             if(type.getName().equals(name))
                 return type;
         throw new IllegalArgumentException("No wire format '" + name + "' was found");

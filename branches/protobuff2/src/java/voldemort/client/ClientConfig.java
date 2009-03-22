@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import voldemort.protocol.WireFormatType;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.serialization.DefaultSerializerFactory;
 import voldemort.serialization.SerializerFactory;
 import voldemort.utils.Utils;
@@ -29,7 +29,7 @@ public class ClientConfig {
     private volatile int socketBufferSize = 64 * 1024;
     private volatile SerializerFactory serializerFactory = new DefaultSerializerFactory();
     private volatile List<String> bootstrapUrls = null;
-    private volatile WireFormatType wireFormatType = WireFormatType.VOLDEMORT;
+    private volatile RequestFormatType requestFormatType = RequestFormatType.VOLDEMORT;
     private volatile RoutingTier routingTier = RoutingTier.CLIENT;
 
     public int getMaxConnectionsPerNode() {
@@ -213,17 +213,18 @@ public class ClientConfig {
         return this;
     }
 
-    public WireFormatType getWireFormatType() {
-        return wireFormatType;
+    public RequestFormatType getRequestFormatType() {
+        return requestFormatType;
     }
 
     /**
-     * Set the wire format type used for network communications
+     * Set the request format type used for network communications (for example
+     * protocol buffers)
      * 
-     * @param wireFormatType The type of the network protocol
+     * @param requestFormatType The type of the network protocol
      */
-    public ClientConfig setWireFormatType(WireFormatType wireFormatType) {
-        this.wireFormatType = Utils.notNull(wireFormatType);
+    public ClientConfig setRequestFormatType(RequestFormatType requestFormatType) {
+        this.requestFormatType = Utils.notNull(requestFormatType);
         return this;
     }
 

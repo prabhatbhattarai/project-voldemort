@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
-import voldemort.protocol.ServerWireFormat;
+import voldemort.server.protocol.RequestHandler;
 
 /**
  * A simple socket-based server for serving voldemort requests
@@ -52,18 +52,18 @@ public class SocketServer extends Thread {
     private final ThreadGroup threadGroup;
     private final CountDownLatch isStarted = new CountDownLatch(1);
     private final int socketBufferSize;
-    private final ServerWireFormat wireFormat;
+    private final RequestHandler requestHandler;
     private ServerSocket serverSocket = null;
 
     public SocketServer(int port,
                         int defaultThreads,
                         int maxThreads,
                         int socketBufferSize,
-                        ServerWireFormat wireFormat) {
+                        RequestHandler requestHandler) {
         this.port = port;
         this.socketBufferSize = socketBufferSize;
         this.threadGroup = new ThreadGroup("voldemort-socket-server");
-        this.wireFormat = wireFormat;
+        this.requestHandler = requestHandler;
         this.threadPool = new ThreadPoolExecutor(defaultThreads,
                                                  maxThreads,
                                                  1,
@@ -110,7 +110,7 @@ public class SocketServer extends Thread {
             while(!isInterrupted() && !serverSocket.isClosed()) {
                 final Socket socket = serverSocket.accept();
                 configureSocket(socket);
-                this.threadPool.execute(new SocketServerSession(socket, wireFormat));
+                this.threadPool.execute(new SocketServerSession(socket, requestHandler));
             }
         } catch(BindException e) {
             logger.error("Could not bind to port " + port + ".");

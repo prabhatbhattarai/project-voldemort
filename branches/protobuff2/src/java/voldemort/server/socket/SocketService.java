@@ -18,9 +18,9 @@ package voldemort.server.socket;
 
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
-import voldemort.protocol.ServerWireFormat;
 import voldemort.server.AbstractService;
 import voldemort.server.VoldemortService;
+import voldemort.server.protocol.RequestHandler;
 
 /**
  * The VoldemortService that loads up the socket server
@@ -34,7 +34,7 @@ public class SocketService extends AbstractService implements VoldemortService {
     private final SocketServer server;
 
     public SocketService(String name,
-                         ServerWireFormat wireFormat,
+                         RequestHandler requestHandler,
                          int port,
                          int coreConnections,
                          int maxConnections,
@@ -44,7 +44,7 @@ public class SocketService extends AbstractService implements VoldemortService {
                                        coreConnections,
                                        maxConnections,
                                        socketBufferSize,
-                                       wireFormat);
+                                       requestHandler);
     }
 
     @Override

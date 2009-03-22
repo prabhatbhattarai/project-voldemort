@@ -28,8 +28,8 @@ import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Node;
-import voldemort.protocol.WireFormatType;
 import voldemort.store.Store;
 import voldemort.store.http.HttpStore;
 import voldemort.utils.ByteArray;
@@ -77,7 +77,7 @@ public class HttpStoreClientFactory extends AbstractStoreClientFactory {
     protected Store<ByteArray, byte[]> getStore(String name,
                                                 String host,
                                                 int port,
-                                                WireFormatType type) {
+                                                RequestFormatType type) {
         return new HttpStore(name, host, port, httpClient);
     }
 

@@ -19,8 +19,8 @@ package voldemort.client;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Node;
-import voldemort.protocol.WireFormatType;
 import voldemort.store.Store;
 import voldemort.store.socket.SocketPool;
 import voldemort.store.socket.SocketStore;
@@ -57,7 +57,7 @@ public class SocketStoreClientFactory extends AbstractStoreClientFactory {
     protected Store<ByteArray, byte[]> getStore(String storeName,
                                                 String host,
                                                 int port,
-                                                WireFormatType type) {
+                                                RequestFormatType type) {
         return new SocketStore(Utils.notNull(storeName),
                                Utils.notNull(host),
                                port,

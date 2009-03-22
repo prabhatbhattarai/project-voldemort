@@ -29,7 +29,7 @@ import org.apache.log4j.Logger;
 import voldemort.ServerTestUtils;
 import voldemort.TestUtils;
 import voldemort.VoldemortTestConstants;
-import voldemort.protocol.WireFormatType;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.AbstractByteArrayStoreTest;
 import voldemort.store.Store;
@@ -53,7 +53,7 @@ public class SocketStoreTest extends AbstractByteArrayStoreTest {
                                                        VoldemortTestConstants.getSimpleStoreDefinitionsXml(),
                                                        "test",
                                                        socketPort,
-                                                       WireFormatType.VOLDEMORT);
+                                                       RequestFormatType.VOLDEMORT);
         socketStore = ServerTestUtils.getSocketStore("test", socketPort);
     }
 

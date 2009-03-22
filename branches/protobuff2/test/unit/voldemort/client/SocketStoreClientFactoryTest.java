@@ -19,7 +19,7 @@ package voldemort.client;
 import java.net.URISyntaxException;
 
 import voldemort.ServerTestUtils;
-import voldemort.protocol.WireFormatType;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.serialization.SerializerFactory;
 import voldemort.server.socket.SocketServer;
 
@@ -42,7 +42,7 @@ public class SocketStoreClientFactoryTest extends AbstractStoreClientFactoryTest
                                                  getStoreDefXml(),
                                                  getValidStoreName(),
                                                  getLocalNode().getSocketPort(),
-                                                 WireFormatType.VOLDEMORT);
+                                                 RequestFormatType.VOLDEMORT);
     }
 
     public void tearDown() throws Exception {

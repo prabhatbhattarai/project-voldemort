@@ -29,9 +29,9 @@ import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 
-import voldemort.protocol.ServerWireFormatFactory;
-import voldemort.protocol.WireFormatType;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.server.http.HttpService;
+import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
 import voldemort.store.http.HttpStore;
@@ -93,14 +93,14 @@ public class RemoteStoreComparisonTest {
                                                         "localhost",
                                                         6666,
                                                         socketPool,
-                                                        WireFormatType.VOLDEMORT,
+                                                        RequestFormatType.VOLDEMORT,
                                                         false);
-        ServerWireFormatFactory factory = new ServerWireFormatFactory(stores, stores);
+        RequestHandlerFactory factory = new RequestHandlerFactory(stores, stores);
         SocketServer socketServer = new SocketServer(6666,
                                                      50,
                                                      50,
                                                      1000,
-                                                     factory.getWireFormat(WireFormatType.VOLDEMORT));
+                                                     factory.getRequestHandler(RequestFormatType.VOLDEMORT));
         socketServer.start();
         socketServer.awaitStartupCompletion();
 

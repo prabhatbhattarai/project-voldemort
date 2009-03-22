@@ -1,4 +1,4 @@
-package voldemort.protocol.pb;
+package voldemort.server.protocol.pb;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 import voldemort.VoldemortException;
-import voldemort.protocol.AbstractServerWireFormat;
+import voldemort.client.protocol.pb.ProtoUtils;
+import voldemort.client.protocol.pb.VProto;
+import voldemort.server.protocol.AbstractRequestHandler;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
 import voldemort.utils.ByteArray;
@@ -17,22 +19,22 @@ import voldemort.versioning.Versioned;
 import com.google.protobuf.ByteString;
 
 /**
- * 
+ * A
  * 
  * @author jay
  * 
  */
-public class ProtocolBuffersServerWireFormat extends AbstractServerWireFormat {
+public class ProtoBuffRequestHandler extends AbstractRequestHandler {
 
-    public ProtocolBuffersServerWireFormat(ErrorCodeMapper errorMapper,
-                                           Map<String, ? extends Store<ByteArray, byte[]>> localStoreMap,
-                                           Map<String, ? extends Store<ByteArray, byte[]>> routedStoreMap) {
+    public ProtoBuffRequestHandler(ErrorCodeMapper errorMapper,
+                                   Map<String, ? extends Store<ByteArray, byte[]>> localStoreMap,
+                                   Map<String, ? extends Store<ByteArray, byte[]>> routedStoreMap) {
         super(errorMapper, localStoreMap, routedStoreMap);
     }
 
     public void handleRequest(DataInputStream inputStream, DataOutputStream outputStream)
             throws IOException {
-        VoldemortProtocol.VoldemortRequest request = VoldemortProtocol.VoldemortRequest.parseFrom(inputStream);
+        VProto.VoldemortRequest request = VProto.VoldemortRequest.parseFrom(inputStream);
         boolean shouldRoute = request.getShouldRoute();
         String storeName = request.getStore();
         Store<ByteArray, byte[]> store = getStore(storeName, shouldRoute);
@@ -52,71 +54,71 @@ public class ProtocolBuffersServerWireFormat extends AbstractServerWireFormat {
         }
     }
 
-    private void handleGet(VoldemortProtocol.GetRequest request,
+    private void handleGet(VProto.GetRequest request,
                            Store<ByteArray, byte[]> store,
                            DataInputStream inputStream,
                            DataOutputStream outputStream) throws IOException {
-        VoldemortProtocol.GetResponse.Builder response = VoldemortProtocol.GetResponse.newBuilder();
+        VProto.GetResponse.Builder response = VProto.GetResponse.newBuilder();
         try {
-            List<Versioned<byte[]>> values = store.get(PbUtils.decodeBytes(request.getKey()));
+            List<Versioned<byte[]>> values = store.get(ProtoUtils.decodeBytes(request.getKey()));
             for(Versioned<byte[]> versioned: values)
-                response.addVersioned(PbUtils.encodeVersioned(versioned));
+                response.addVersioned(ProtoUtils.encodeVersioned(versioned));
         } catch(VoldemortException e) {
-            response.setError(PbUtils.encodeError(getErrorMapper(), e));
+            response.setError(ProtoUtils.encodeError(getErrorMapper(), e));
         }
         response.build().writeTo(outputStream);
     }
 
-    private void handleGetAll(VoldemortProtocol.GetAllRequest request,
+    private void handleGetAll(VProto.GetAllRequest request,
                               Store<ByteArray, byte[]> store,
                               DataInputStream inputStream,
                               DataOutputStream outputStream) throws IOException {
-        VoldemortProtocol.GetAllResponse.Builder response = VoldemortProtocol.GetAllResponse.newBuilder();
+        VProto.GetAllResponse.Builder response = VProto.GetAllResponse.newBuilder();
         try {
             List<ByteArray> keys = new ArrayList<ByteArray>(request.getKeysCount());
             for(ByteString string: request.getKeysList())
-                keys.add(PbUtils.decodeBytes(string));
+                keys.add(ProtoUtils.decodeBytes(string));
             Map<ByteArray, List<Versioned<byte[]>>> values = store.getAll(keys);
             for(Map.Entry<ByteArray, List<Versioned<byte[]>>> entry: values.entrySet()) {
-                VoldemortProtocol.KeyedVersions.Builder keyedVersion = VoldemortProtocol.KeyedVersions.newBuilder()
-                                                                                                      .setKey(PbUtils.encodeBytes(entry.getKey()));
+                VProto.KeyedVersions.Builder keyedVersion = VProto.KeyedVersions.newBuilder()
+                                                                                .setKey(ProtoUtils.encodeBytes(entry.getKey()));
                 for(Versioned<byte[]> version: entry.getValue())
-                    keyedVersion.addVersions(PbUtils.encodeVersioned(version));
+                    keyedVersion.addVersions(ProtoUtils.encodeVersioned(version));
                 response.addValues(keyedVersion);
             }
         } catch(VoldemortException e) {
-            response.setError(PbUtils.encodeError(getErrorMapper(), e));
+            response.setError(ProtoUtils.encodeError(getErrorMapper(), e));
         }
         response.build().writeTo(outputStream);
     }
 
-    private void handlePut(VoldemortProtocol.PutRequest request,
+    private void handlePut(VProto.PutRequest request,
                            Store<ByteArray, byte[]> store,
                            DataInputStream inputStream,
                            DataOutputStream outputStream) throws IOException {
-        VoldemortProtocol.PutResponse.Builder response = VoldemortProtocol.PutResponse.newBuilder();
+        VProto.PutResponse.Builder response = VProto.PutResponse.newBuilder();
         try {
-            ByteArray key = PbUtils.decodeBytes(request.getKey());
-            Versioned<byte[]> value = PbUtils.decodeVersioned(request.getVersioned());
+            ByteArray key = ProtoUtils.decodeBytes(request.getKey());
+            Versioned<byte[]> value = ProtoUtils.decodeVersioned(request.getVersioned());
             store.put(key, value);
         } catch(VoldemortException e) {
-            response.setError(PbUtils.encodeError(getErrorMapper(), e));
+            response.setError(ProtoUtils.encodeError(getErrorMapper(), e));
         }
         response.build().writeTo(outputStream);
     }
 
-    private void handleDelete(VoldemortProtocol.DeleteRequest request,
+    private void handleDelete(VProto.DeleteRequest request,
                               Store<ByteArray, byte[]> store,
                               DataInputStream inputStream,
                               DataOutputStream outputStream) throws IOException {
-        VoldemortProtocol.DeleteResponse.Builder response = VoldemortProtocol.DeleteResponse.newBuilder();
+        VProto.DeleteResponse.Builder response = VProto.DeleteResponse.newBuilder();
         try {
-            boolean success = store.delete(PbUtils.decodeBytes(request.getKey()),
-                                           PbUtils.decodeClock(request.getVersion()));
+            boolean success = store.delete(ProtoUtils.decodeBytes(request.getKey()),
+                                           ProtoUtils.decodeClock(request.getVersion()));
             response.setSuccess(success);
         } catch(VoldemortException e) {
             response.setSuccess(false);
-            response.setError(PbUtils.encodeError(getErrorMapper(), e));
+            response.setError(ProtoUtils.encodeError(getErrorMapper(), e));
         }
         response.build().writeTo(outputStream);
     }

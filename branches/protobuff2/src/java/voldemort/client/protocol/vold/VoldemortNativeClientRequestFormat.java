@@ -1,4 +1,4 @@
-package voldemort.protocol.vold;
+package voldemort.client.protocol.vold;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import voldemort.protocol.ClientWireFormat;
+import voldemort.client.protocol.RequestFormat;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.StoreUtils;
@@ -23,11 +23,11 @@ import voldemort.versioning.Versioned;
  * @author jay
  * 
  */
-public class VoldemortNativeClientWireFormat implements ClientWireFormat {
+public class VoldemortNativeClientRequestFormat implements RequestFormat {
 
     public final ErrorCodeMapper mapper;
 
-    public VoldemortNativeClientWireFormat() {
+    public VoldemortNativeClientRequestFormat() {
         this.mapper = new ErrorCodeMapper();
     }
 

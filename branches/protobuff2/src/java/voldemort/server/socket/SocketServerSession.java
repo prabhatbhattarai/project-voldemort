@@ -8,16 +8,16 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 
-import voldemort.protocol.ServerWireFormat;
+import voldemort.server.protocol.RequestHandler;
 
 public class SocketServerSession implements Runnable {
 
     private final Socket socket;
-    private final ServerWireFormat wireFormat;
+    private final RequestHandler requestHandler;
 
-    public SocketServerSession(Socket socket, ServerWireFormat wireFormat) {
+    public SocketServerSession(Socket socket, RequestHandler requestHandler) {
         this.socket = socket;
-        this.wireFormat = wireFormat;
+        this.requestHandler = requestHandler;
     }
 
     public Socket getSocket() {
@@ -36,7 +36,7 @@ public class SocketServerSession implements Runnable {
             DataOutputStream outputStream = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),
                                                                                           64000));
             while(!isInterrupted()) {
-                wireFormat.handleRequest(inputStream, outputStream);
+                requestHandler.handleRequest(inputStream, outputStream);
                 outputStream.flush();
             }
         } catch(EOFException e) {
