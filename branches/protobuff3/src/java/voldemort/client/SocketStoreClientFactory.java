@@ -25,6 +25,7 @@ import voldemort.store.Store;
 import voldemort.store.socket.SocketPool;
 import voldemort.store.socket.SocketStore;
 import voldemort.utils.ByteArray;
+import voldemort.utils.JmxUtils;
 import voldemort.utils.Utils;
 
 /**
@@ -51,6 +52,7 @@ public class SocketStoreClientFactory extends AbstractStoreClientFactory {
                                          config.getConnectionTimeout(TimeUnit.MILLISECONDS),
                                          config.getSocketTimeout(TimeUnit.MILLISECONDS),
                                          config.getSocketBufferSize());
+        registerJmx(JmxUtils.createObjectName(SocketPool.class), socketPool);
     }
 
     @Override

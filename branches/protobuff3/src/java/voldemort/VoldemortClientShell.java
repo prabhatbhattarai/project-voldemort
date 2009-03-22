@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import voldemort.client.SocketStoreClientFactory;
 import voldemort.client.StoreClientFactory;
 import voldemort.cluster.Node;
 import voldemort.serialization.SerializationException;
+import voldemort.serialization.json.EndOfFileException;
 import voldemort.serialization.json.JsonReader;
 import voldemort.utils.Utils;
 import voldemort.versioning.Versioned;
@@ -81,6 +83,21 @@ public class VoldemortClientShell {
                     JsonReader jsonReader = new JsonReader(new StringReader(line.substring("put".length())));
                     client.put(tightenNumericTypes(jsonReader.read()),
                                tightenNumericTypes(jsonReader.read()));
+                } else if(line.toLowerCase().startsWith("getall")) {
+                    JsonReader jsonReader = new JsonReader(new StringReader(line.substring("getall".length())));
+                    List<Object> keys = new ArrayList<Object>();
+                    try {
+                        while(true)
+                            keys.add(jsonReader.read());
+                    } catch(EndOfFileException e) {
+                        // this is okay, just means we are done reading
+                    }
+                    Map<Object, Versioned<Object>> vals = client.getAll(keys);
+                    for(Map.Entry<Object, Versioned<Object>> entry: vals.entrySet()) {
+                        System.out.print(entry.getKey());
+                        System.out.print(" => ");
+                        printVersioned(entry.getValue());
+                    }
                 } else if(line.toLowerCase().startsWith("get")) {
                     JsonReader jsonReader = new JsonReader(new StringReader(line.substring("get".length())));
                     printVersioned(client.get(tightenNumericTypes(jsonReader.read())));
@@ -106,6 +123,8 @@ public class VoldemortClientShell {
                 } else {
                     System.err.println("Invalid command.");
                 }
+            } catch(EndOfFileException e) {
+                System.err.println("Expected additional token.");
             } catch(SerializationException e) {
                 System.err.print("Error serializing values: ");
                 e.printStackTrace();

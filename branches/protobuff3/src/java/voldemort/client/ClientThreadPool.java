@@ -5,8 +5,16 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import voldemort.annotations.jmx.JmxGetter;
+import voldemort.annotations.jmx.JmxManaged;
 import voldemort.utils.DaemonThreadFactory;
 
+/**
+ * A thread pool with a more convenient constructor and some jmx monitoring
+ * 
+ * @author jay
+ * 
+ */
+@JmxManaged(description = "A voldemort client thread pool")
 public class ClientThreadPool extends ThreadPoolExecutor {
 
     public ClientThreadPool(int maxThreads, long threadIdleMs, int maxQueuedRequests) {
