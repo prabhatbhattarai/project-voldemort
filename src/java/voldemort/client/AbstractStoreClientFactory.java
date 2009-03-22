@@ -17,12 +17,16 @@
 package voldemort.client;
 
 import java.io.StringReader;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 import org.apache.log4j.Logger;
 
@@ -40,8 +44,10 @@ import voldemort.store.logging.LoggingStore;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.store.routed.RoutedStore;
 import voldemort.store.serialized.SerializingStore;
+import voldemort.store.stats.StatTrackingStore;
 import voldemort.store.versioned.InconsistencyResolvingStore;
 import voldemort.utils.ByteArray;
+import voldemort.utils.JmxUtils;
 import voldemort.utils.SystemTime;
 import voldemort.versioning.ChainedResolver;
 import voldemort.versioning.InconsistencyResolver;
@@ -74,6 +80,8 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
     private final int nodeBannageMs;
     private final ExecutorService threadPool;
     private final SerializerFactory serializerFactory;
+    private final boolean isJmxEnabled;
+    private final MBeanServer mbeanServer;
 
     public AbstractStoreClientFactory(ClientConfig config) {
         this.threadPool = new ClientThreadPool(config.getMaxThreads(),
@@ -83,6 +91,12 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
         this.bootstrapUrls = validateUrls(config.getBootstrapUrls());
         this.routingTimeoutMs = config.getRoutingTimeout(TimeUnit.MILLISECONDS);
         this.nodeBannageMs = config.getNodeBannagePeriod(TimeUnit.MILLISECONDS);
+        this.isJmxEnabled = config.isJmxEnabled();
+        if(isJmxEnabled)
+            this.mbeanServer = ManagementFactory.getPlatformMBeanServer();
+        else
+            this.mbeanServer = null;
+        registerJmx(JmxUtils.createObjectName(threadPool.getClass()), threadPool);
     }
 
     public <K, V> StoreClient<K, V> getStoreClient(String storeName) {
@@ -134,21 +148,27 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
                                                          nodeBannageMs,
                                                          SystemTime.INSTANCE);
 
+        if(isJmxEnabled) {
+            store = new StatTrackingStore(store);
+            registerJmx(JmxUtils.createObjectName(JmxUtils.getPackageName(store.getClass()),
+                                                  store.getName()), store);
+        }
+
         Serializer<K> keySerializer = (Serializer<K>) serializerFactory.getSerializer(storeDef.getKeySerializer());
         Serializer<V> valueSerializer = (Serializer<V>) serializerFactory.getSerializer(storeDef.getValueSerializer());
-        Store<K, V> serializingStore = new SerializingStore<K, V>(store,
-                                                                  keySerializer,
-                                                                  valueSerializer);
+        Store<K, V> serializedStore = new SerializingStore<K, V>(store,
+                                                                 keySerializer,
+                                                                 valueSerializer);
 
         // Add inconsistency resolving decorator, using their inconsistency
         // resolver (if they gave us one)
         InconsistencyResolver<Versioned<V>> secondaryResolver = inconsistencyResolver == null ? new TimeBasedInconsistencyResolver()
                                                                                              : inconsistencyResolver;
-        Store<K, V> resolvingStore = new InconsistencyResolvingStore<K, V>(serializingStore,
-                                                                           new ChainedResolver<Versioned<V>>(new VectorClockInconsistencyResolver(),
-                                                                                                             secondaryResolver));
+        serializedStore = new InconsistencyResolvingStore<K, V>(serializedStore,
+                                                                new ChainedResolver<Versioned<V>>(new VectorClockInconsistencyResolver(),
+                                                                                                  secondaryResolver));
 
-        return new DefaultStoreClient<K, V>(resolvingStore,
+        return new DefaultStoreClient<K, V>(serializedStore,
                                             keySerializer,
                                             valueSerializer,
                                             routingStrategy);
@@ -226,6 +246,14 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
 
     public SerializerFactory getSerializerFactory() {
         return serializerFactory;
+    }
+
+    protected void registerJmx(ObjectName name, Object object) {
+        if(this.isJmxEnabled) {
+            if(mbeanServer.isRegistered(name))
+                JmxUtils.unregisterMbean(mbeanServer, name);
+            JmxUtils.registerMbean(mbeanServer, JmxUtils.createModelMBean(object), name);
+        }
     }
 
 }

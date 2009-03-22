@@ -31,6 +31,7 @@ public class ClientConfig {
     private volatile List<String> bootstrapUrls = null;
     private volatile RequestFormatType requestFormatType = RequestFormatType.VOLDEMORT;
     private volatile RoutingTier routingTier = RoutingTier.CLIENT;
+    private volatile boolean enableJmx = true;
 
     public int getMaxConnectionsPerNode() {
         return maxConnectionsPerNode;
@@ -259,6 +260,19 @@ public class ClientConfig {
 
     public int toInt(long l) {
         return (int) Math.min(l, Integer.MAX_VALUE);
+    }
+
+    public boolean isJmxEnabled() {
+        return this.enableJmx;
+    }
+
+    /**
+     * Enable JMX monitoring of the clients?
+     * 
+     * @param enableJmx If true JMX monitoring of the clients will be enabled
+     */
+    public void setEnableJmx(boolean enableJmx) {
+        this.enableJmx = enableJmx;
     }
 
 }

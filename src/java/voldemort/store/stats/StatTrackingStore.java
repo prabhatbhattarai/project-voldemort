@@ -17,6 +17,7 @@
 package voldemort.store.stats;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.management.MBeanOperationInfo;
 
@@ -39,6 +40,9 @@ public class StatTrackingStore<K, V> extends DelegatingStore<K, V> {
 
     private volatile int callsToGet = 0;
     private volatile double avgGetCompletionTime = 0.0d;
+
+    private volatile int callsToGetAll = 0;
+    private volatile double avgGetAllCompletionTime = 0.0d;
 
     private volatile int callsToPut = 0;
     private volatile double avgPutCompletionTime = 0.0d;
@@ -83,6 +87,21 @@ public class StatTrackingStore<K, V> extends DelegatingStore<K, V> {
     }
 
     @Override
+    public Map<K, List<Versioned<V>>> getAll(Iterable<K> keys) throws VoldemortException {
+        callsToGetAll++;
+        long start = System.nanoTime();
+        try {
+            return super.getAll(keys);
+        } catch(VoldemortException e) {
+            exceptionsThrown++;
+            throw e;
+        } finally {
+            long elapsed = System.nanoTime() - start;
+            avgGetAllCompletionTime += (elapsed - avgGetAllCompletionTime) / callsToGetAll;
+        }
+    }
+
+    @Override
     public void put(K key, Versioned<V> value) throws VoldemortException {
         callsToPut++;
         long start = System.nanoTime();
@@ -117,6 +136,11 @@ public class StatTrackingStore<K, V> extends DelegatingStore<K, V> {
         return avgGetCompletionTime / Time.NS_PER_MS;
     }
 
+    @JmxGetter(name = "averageGetAllCompletionTimeInMs", description = "The avg. time in ms for GETALL calls to complete.")
+    public double getAverageGetallCompletionTimeInMs() {
+        return avgGetAllCompletionTime / Time.NS_PER_MS;
+    }
+
     @JmxGetter(name = "averagePutCompletionTimeInMs", description = "The avg. time in ms for PUT calls to complete.")
     public double getAveragePutCompletionTimeInMs() {
         return avgPutCompletionTime / Time.NS_PER_MS;
@@ -130,9 +154,11 @@ public class StatTrackingStore<K, V> extends DelegatingStore<K, V> {
     @JmxOperation(description = "Reset statistics.", impact = MBeanOperationInfo.ACTION)
     public void resetStatistics() {
         callsToGet = 0;
+        callsToGetAll = 0;
         callsToPut = 0;
         callsToDelete = 0;
         avgGetCompletionTime = 0d;
+        avgGetAllCompletionTime = 0d;
         avgPutCompletionTime = 0d;
         avgDeleteCompletionTime = 0d;
     }
