@@ -15,8 +15,9 @@
 	<modules>
 		<module>client</module>
 		<module>server</module>
-		<module>test</module>
 		<module>example</module>
+		<module>test</module>
+		<module>contrib</module>
 	</modules>
 	<build>
 		<defaultGoal>package</defaultGoal>
@@ -70,6 +71,18 @@
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>voldemort-test-common</artifactId>
+				<version>${project.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>voldemort-test-integration</artifactId>
+				<version>${project.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>voldemort-contrib-utils</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>
 			</dependency>
@@ -223,6 +236,24 @@
 				<artifactId>junit</artifactId>
 				<version>4.1</version>
 				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>commons-lang</groupId>
+				<artifactId>commons-lang</artifactId>
+				<version>2.1</version>
+				<scope>compile</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-cli2</artifactId>
+				<version>2.0-20090326</version>
+				<scope>compile</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-core</artifactId>
+				<version>0.18.1</version>
+				<scope>compile</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

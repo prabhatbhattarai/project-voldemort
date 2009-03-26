@@ -14,7 +14,7 @@
  * the License.
  */
 
-package test.voldemort.contrib.utils;
+package voldemort.contrib.utils;
 
 import junit.framework.TestCase;
 
