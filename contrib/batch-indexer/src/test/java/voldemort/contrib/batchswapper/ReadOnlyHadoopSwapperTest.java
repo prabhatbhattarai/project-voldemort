@@ -14,7 +14,7 @@
  * the License.
  */
 
-package test.voldemort.contrib.batchswapper;
+package voldemort.contrib.batchswapper;
 
 import java.io.File;
 import java.io.FileReader;
@@ -47,8 +47,8 @@ public class ReadOnlyHadoopSwapperTest extends TestCase {
 
     private static final String baseDir = TestUtils.createTempDir().getAbsolutePath();
 
-    private static final String clusterFile = "contrib/common/config/two-node-cluster.xml";
-    private static final String storerFile = "contrib/common/config/testSwapStore.xml";
+    private static final String clusterFile = "voldemort/config/two-node-cluster.xml";
+    private static final String storerFile = "voldemort/config/testSwapStore.xml";
     private static final String storeName = "swapTestStore";
 
     VoldemortServer server1;
@@ -99,7 +99,7 @@ public class ReadOnlyHadoopSwapperTest extends TestCase {
             entryMap.put("key" + i, "value-" + i);
         }
 
-        Cluster cluster = new ClusterMapper().readCluster(new FileReader(new File("contrib/common/config/two-node-cluster.xml")));
+        Cluster cluster = new ClusterMapper().readCluster(new FileReader(new File("voldemort/config/two-node-cluster.xml")));
         return ReadOnlySwapperTestUtils.createReadOnlyIndex(cluster, entryMap, baseDir);
     }
 

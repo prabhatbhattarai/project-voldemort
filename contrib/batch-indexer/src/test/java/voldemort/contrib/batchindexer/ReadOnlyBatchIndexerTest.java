@@ -14,7 +14,7 @@
  * the License.
  */
 
-package test.voldemort.contrib.batchindexer;
+package voldemort.contrib.batchindexer;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -58,7 +58,7 @@ public class ReadOnlyBatchIndexerTest extends TestCase {
     public void testCSVFileBatchIndexer() throws Exception {
 
         // rename Files
-        File dataDir = new File("contrib/batch-indexer/temp-output/text");
+        File dataDir = new File("target/temp-output/text");
         if(dataDir.exists()) {
             FileDeleteStrategy.FORCE.delete(dataDir);
         }
@@ -84,7 +84,7 @@ public class ReadOnlyBatchIndexerTest extends TestCase {
                                                                            Valueserializer);
 
         // query all keys and check for value
-        BufferedReader reader = new BufferedReader(new FileReader(new File("contrib/common/test-data/usersCSV.txt")));
+        BufferedReader reader = new BufferedReader(new FileReader(new File("src/test/data/usersCSV.txt")));
         String line;
         while(null != (line = reader.readLine())) {
 
@@ -129,13 +129,13 @@ class TextBatchIndexer extends ReadOnlyBatchIndexer {
     public void configure(JobConf conf) {
 
         conf.set("job.name", "testCSVBatchIndexer");
-        conf.set("voldemort.cluster.local.filePath", "contrib/common/config/nine-node-cluster.xml");
-        conf.set("voldemort.store.local.filePath", "contrib/common/config/stores.xml");
+        conf.set("voldemort.cluster.local.filePath", "voldemort/config/nine-node-cluster.xml");
+        conf.set("voldemort.store.local.filePath", "voldemort/config/stores.xml");
         conf.set("voldemort.store.name", "users");
 
         // set inset/outset path
-        FileInputFormat.addInputPaths(conf, "contrib/common/test-data/usersCSV.txt");
-        FileOutputFormat.setOutputPath(conf, new Path("contrib/batch-indexer/temp-output/text"));
+        FileInputFormat.addInputPaths(conf, "src/test/data/usersCSV.txt");
+        FileOutputFormat.setOutputPath(conf, new Path("target/temp-output/text"));
 
         conf.setMapperClass(TextBatchMapper.class);
         conf.setInputFormat(TextInputFormat.class);

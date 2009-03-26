@@ -1,4 +1,4 @@
-package test.voldemort.contrib.batchswapper;
+package voldemort.contrib.batchswapper;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
