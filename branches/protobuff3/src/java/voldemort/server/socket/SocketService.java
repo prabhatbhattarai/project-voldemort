@@ -19,6 +19,7 @@ package voldemort.server.socket;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
 import voldemort.server.AbstractService;
+import voldemort.server.ServiceType;
 import voldemort.server.VoldemortService;
 import voldemort.server.protocol.RequestHandler;
 
@@ -33,13 +34,12 @@ public class SocketService extends AbstractService implements VoldemortService {
 
     private final SocketServer server;
 
-    public SocketService(String name,
-                         RequestHandler requestHandler,
+    public SocketService(RequestHandler requestHandler,
                          int port,
                          int coreConnections,
                          int maxConnections,
                          int socketBufferSize) {
-        super(name);
+        super(ServiceType.SOCKET);
         this.server = new SocketServer(port,
                                        coreConnections,
                                        maxConnections,

@@ -27,6 +27,7 @@ import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
 import voldemort.server.AbstractService;
+import voldemort.server.ServiceType;
 import voldemort.server.VoldemortServer;
 import voldemort.server.http.gui.AdminServlet;
 import voldemort.server.http.gui.ReadOnlyStoreManagementServlet;
@@ -48,8 +49,8 @@ public class HttpService extends AbstractService {
     private Server httpServer;
     private Context context;
 
-    public HttpService(String name, VoldemortServer server, int numberOfThreads, int httpPort) {
-        super(name);
+    public HttpService(VoldemortServer server, int numberOfThreads, int httpPort) {
+        super(ServiceType.HTTP);
         this.port = httpPort;
         this.numberOfThreads = numberOfThreads;
         this.server = server;
@@ -76,7 +77,8 @@ public class HttpService extends AbstractService {
                                  velocityEngine);
             context.addServlet(new ServletHolder(new AdminServlet(server, velocityEngine)),
                                "/admin");
-            context.addServlet(new ServletHolder(new StoreServlet(server.getStoreMap())), "/*");
+            context.addServlet(new ServletHolder(new StoreServlet(server.getStoreRepository())),
+                               "/*");
             context.addServlet(new ServletHolder(new ReadOnlyStoreManagementServlet(server,
                                                                                     velocityEngine)),
                                "/read-only/mgmt");
