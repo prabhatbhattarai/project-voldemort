@@ -47,8 +47,8 @@ public class ReadOnlyHadoopSwapperTest extends TestCase {
 
     private static final String baseDir = TestUtils.createTempDir().getAbsolutePath();
 
-    private static final String clusterFile = "voldemort/config/two-node-cluster.xml";
-    private static final String storerFile = "voldemort/config/testSwapStore.xml";
+    private static final String clusterFile = "src/test/config/two-node-cluster.xml";
+    private static final String storerFile = "src/test/config/testSwapStore.xml";
     private static final String storeName = "swapTestStore";
 
     VoldemortServer server1;
@@ -99,7 +99,7 @@ public class ReadOnlyHadoopSwapperTest extends TestCase {
             entryMap.put("key" + i, "value-" + i);
         }
 
-        Cluster cluster = new ClusterMapper().readCluster(new FileReader(new File("voldemort/config/two-node-cluster.xml")));
+        Cluster cluster = new ClusterMapper().readCluster(new FileReader(new File("src/test/config/two-node-cluster.xml")));
         return ReadOnlySwapperTestUtils.createReadOnlyIndex(cluster, entryMap, baseDir);
     }
 

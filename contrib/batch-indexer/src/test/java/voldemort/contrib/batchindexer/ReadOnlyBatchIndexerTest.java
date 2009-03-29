@@ -129,8 +129,8 @@ class TextBatchIndexer extends ReadOnlyBatchIndexer {
     public void configure(JobConf conf) {
 
         conf.set("job.name", "testCSVBatchIndexer");
-        conf.set("voldemort.cluster.local.filePath", "voldemort/config/nine-node-cluster.xml");
-        conf.set("voldemort.store.local.filePath", "voldemort/config/stores.xml");
+        conf.set("voldemort.cluster.local.filePath", "src/test/config/nine-node-cluster.xml");
+        conf.set("voldemort.store.local.filePath", "src/test/config/stores.xml");
         conf.set("voldemort.store.name", "users");
 
         // set inset/outset path
