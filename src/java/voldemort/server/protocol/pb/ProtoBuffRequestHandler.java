@@ -10,6 +10,7 @@ import java.util.Map;
 import voldemort.VoldemortException;
 import voldemort.client.protocol.pb.ProtoUtils;
 import voldemort.client.protocol.pb.VProto;
+import voldemort.server.StoreRepository;
 import voldemort.server.protocol.AbstractRequestHandler;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
@@ -26,10 +27,8 @@ import com.google.protobuf.ByteString;
  */
 public class ProtoBuffRequestHandler extends AbstractRequestHandler {
 
-    public ProtoBuffRequestHandler(ErrorCodeMapper errorMapper,
-                                   Map<String, ? extends Store<ByteArray, byte[]>> localStoreMap,
-                                   Map<String, ? extends Store<ByteArray, byte[]>> routedStoreMap) {
-        super(errorMapper, localStoreMap, routedStoreMap);
+    public ProtoBuffRequestHandler(ErrorCodeMapper errorMapper, StoreRepository storeRepository) {
+        super(errorMapper, storeRepository);
     }
 
     public void handleRequest(DataInputStream inputStream, DataOutputStream outputStream)

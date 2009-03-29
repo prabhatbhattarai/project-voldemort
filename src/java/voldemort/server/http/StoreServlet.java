@@ -20,7 +20,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
 import javax.servlet.ServletContext;
@@ -34,6 +33,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
 import voldemort.VoldemortException;
+import voldemort.server.StoreRepository;
 import voldemort.server.VoldemortServer;
 import voldemort.store.Store;
 import voldemort.store.http.HttpResponseCodeErrorMapper;
@@ -61,13 +61,13 @@ public class StoreServlet extends HttpServlet {
     private static final HttpResponseCodeErrorMapper httpResponseCodeErrorMapper = new HttpResponseCodeErrorMapper();
     private static final Hex urlCodec = new Hex();
 
-    private ConcurrentMap<String, Store<ByteArray, byte[]>> stores;
+    private StoreRepository repository;
 
     /* For use by servlet container */
     public StoreServlet() {}
 
-    public StoreServlet(ConcurrentMap<String, Store<ByteArray, byte[]>> stores) {
-        this.stores = stores;
+    public StoreServlet(StoreRepository repository) {
+        this.repository = repository;
     }
 
     @Override
@@ -75,15 +75,16 @@ public class StoreServlet extends HttpServlet {
         super.init();
         // if we don't already have a stores map, attempt to initialize from the
         // servlet context
-        if(this.stores == null) {
+        if(this.repository == null) {
             ServletContext context = this.getServletContext();
             VoldemortServer server = (VoldemortServer) Utils.notNull(context.getAttribute(VoldemortServletContextListener.SERVER_CONFIG_KEY));
-            this.stores = server.getStoreMap();
+            this.repository = server.getStoreRepository();
         }
     }
 
     private Store<ByteArray, byte[]> getStore(String name) {
-        Store<ByteArray, byte[]> store = stores.get(name);
+        // todo: handle case of routed store
+        Store<ByteArray, byte[]> store = repository.getLocalStore(name);
         if(store == null)
             throw new VoldemortException("No store named '" + name + "'.");
         return store;

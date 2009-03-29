@@ -17,6 +17,7 @@
 package voldemort.server.http.gui;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletException;
@@ -24,19 +25,23 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import voldemort.server.ServiceType;
 import voldemort.server.VoldemortServer;
 import voldemort.server.http.VoldemortServletContextListener;
 import voldemort.server.storage.StorageService;
+import voldemort.store.StorageEngine;
 import voldemort.store.readonly.RandomAccessFileStore;
+import voldemort.utils.ByteArray;
 import voldemort.utils.Utils;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class ReadOnlyStoreManagementServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1;
 
-    private Map<String, RandomAccessFileStore> stores;
+    private List<RandomAccessFileStore> stores;
     private VelocityEngine velocityEngine;
 
     public ReadOnlyStoreManagementServlet(VoldemortServer server, VelocityEngine engine) {
@@ -51,10 +56,15 @@ public class ReadOnlyStoreManagementServlet extends HttpServlet {
         this.velocityEngine = (VelocityEngine) Utils.notNull(getServletContext().getAttribute(VoldemortServletContextListener.VELOCITY_ENGINE_KEY));
     }
 
-    private Map<String, RandomAccessFileStore> getReadOnlyStores(VoldemortServer server) {
+    private List<RandomAccessFileStore> getReadOnlyStores(VoldemortServer server) {
         StorageService storage = (StorageService) Utils.notNull(server)
-                                                       .getService("storage-service");
-        return storage.getReadOnlyStores();
+                                                       .getService(ServiceType.STORAGE);
+        List<RandomAccessFileStore> l = Lists.newArrayList();
+        for(StorageEngine<ByteArray, byte[]> engine: storage.getStoreRepository()
+                                                            .getStorageEnginesByClass(RandomAccessFileStore.class)) {
+            l.add((RandomAccessFileStore) engine);
+        }
+        return l;
     }
 
     @Override
@@ -72,21 +82,26 @@ public class ReadOnlyStoreManagementServlet extends HttpServlet {
             String indexFile = getRequired(req, "index");
             String dataFile = getRequired(req, "data");
             String storeName = getRequired(req, "store");
-            if(!stores.containsKey(storeName))
-                throw new ServletException("'" + storeName
-                                           + "' is not a registered read-only store.");
+            RandomAccessFileStore store = getStore(storeName);
+
             if(!Utils.isReadableFile(indexFile))
                 throw new ServletException("Index file '" + indexFile + "' is not a readable file.");
             if(!Utils.isReadableFile(dataFile))
                 throw new ServletException("Data file '" + dataFile + "' is not a readable file.");
 
-            RandomAccessFileStore store = stores.get(storeName);
             store.swapFiles(indexFile, dataFile);
             resp.getWriter().write("Swap completed.");
         } else {
             throw new IllegalArgumentException("Unknown operation parameter: "
                                                + req.getParameter("operation"));
         }
+    }
+
+    private RandomAccessFileStore getStore(String storeName) throws ServletException {
+        for(RandomAccessFileStore store: this.stores)
+            if(store.getName().equals(storeName))
+                return store;
+        throw new ServletException("'" + storeName + "' is not a registered read-only store.");
     }
 
     private String getRequired(HttpServletRequest req, String name) throws ServletException {

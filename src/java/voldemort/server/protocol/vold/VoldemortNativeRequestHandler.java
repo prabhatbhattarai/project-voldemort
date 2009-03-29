@@ -9,6 +9,7 @@ import java.util.Map;
 
 import voldemort.VoldemortException;
 import voldemort.serialization.VoldemortOpCode;
+import voldemort.server.StoreRepository;
 import voldemort.server.protocol.AbstractRequestHandler;
 import voldemort.server.protocol.RequestHandler;
 import voldemort.store.ErrorCodeMapper;
@@ -18,13 +19,10 @@ import voldemort.utils.ByteUtils;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
-public class VoldemortNativeRequestHandler extends AbstractRequestHandler implements
-        RequestHandler {
+public class VoldemortNativeRequestHandler extends AbstractRequestHandler implements RequestHandler {
 
-    public VoldemortNativeRequestHandler(ErrorCodeMapper errorMapper,
-                                           Map<String, ? extends Store<ByteArray, byte[]>> localStoreMap,
-                                           Map<String, ? extends Store<ByteArray, byte[]>> routedStoreMap) {
-        super(errorMapper, localStoreMap, routedStoreMap);
+    public VoldemortNativeRequestHandler(ErrorCodeMapper errorMapper, StoreRepository repository) {
+        super(errorMapper, repository);
     }
 
     public void handleRequest(DataInputStream inputStream, DataOutputStream outputStream)

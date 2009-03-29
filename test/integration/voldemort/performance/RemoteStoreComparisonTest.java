@@ -16,9 +16,6 @@
 
 package voldemort.performance;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import org.apache.commons.httpclient.DefaultHttpMethodRetryHandler;
 import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpClient;
@@ -30,6 +27,7 @@ import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 import org.apache.commons.httpclient.params.HttpMethodParams;
 
 import voldemort.client.protocol.RequestFormatType;
+import voldemort.server.StoreRepository;
 import voldemort.server.http.HttpService;
 import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.socket.SocketServer;
@@ -88,8 +86,8 @@ public class RemoteStoreComparisonTest {
 
         /*** Do Socket tests ***/
         String storeName = "test";
-        ConcurrentMap<String, Store<ByteArray, byte[]>> stores = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>(1);
-        stores.put(storeName, new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
+        StoreRepository repository = new StoreRepository();
+        repository.addLocalStore(new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
         SocketPool socketPool = new SocketPool(10, 10, 1000, 1000, 32 * 1024);
         final SocketStore socketStore = new SocketStore(storeName,
                                                         "localhost",
@@ -97,7 +95,7 @@ public class RemoteStoreComparisonTest {
                                                         socketPool,
                                                         RequestFormatType.VOLDEMORT,
                                                         false);
-        RequestHandlerFactory factory = new RequestHandlerFactory(stores, stores);
+        RequestHandlerFactory factory = new RequestHandlerFactory(repository);
         SocketServer socketServer = new SocketServer(6666,
                                                      50,
                                                      50,
@@ -144,8 +142,8 @@ public class RemoteStoreComparisonTest {
         socketServer.shutdown();
 
         /*** Do HTTP tests ***/
-        stores.put(storeName, new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
-        HttpService httpService = new HttpService(storeName, null, numThreads, 8080);
+        repository.addLocalStore(new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
+        HttpService httpService = new HttpService(null, numThreads, 8080);
         httpService.start();
         HttpClient httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
         HttpClientParams clientParams = httpClient.getParams();

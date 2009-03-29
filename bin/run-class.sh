@@ -29,4 +29,4 @@ do
 done
 
 export CLASSPATH
-java -Xmx2G -server -cp $CLASSPATH ${1} ${2} ${3} ${4} ${5} ${6} ${7} 
+java -Xmx2G -server -Dcom.sun.management.jmxremote -cp $CLASSPATH ${1} ${2} ${3} ${4} ${5} ${6} ${7} 

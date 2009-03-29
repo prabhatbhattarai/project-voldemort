@@ -136,11 +136,9 @@ public abstract class AbstractStoreClientFactory implements StoreClientFactory {
         Store<ByteArray, byte[]> store = new RoutedStore(storeName,
                                                          clientMapping,
                                                          routingStrategy,
-                                                         storeDef.getPreferredReads() == null ? storeDef.getRequiredReads()
-                                                                                             : storeDef.getPreferredReads(),
+                                                         storeDef.getPreferredReads(),
                                                          storeDef.getRequiredReads(),
-                                                         storeDef.getPreferredWrites() == null ? storeDef.getRequiredWrites()
-                                                                                              : storeDef.getPreferredWrites(),
+                                                         storeDef.getPreferredWrites(),
                                                          storeDef.getRequiredWrites(),
                                                          true,
                                                          threadPool,

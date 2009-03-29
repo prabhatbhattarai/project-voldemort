@@ -1,7 +1,6 @@
 package voldemort.server.protocol;
 
-import java.util.Map;
-
+import voldemort.server.StoreRepository;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.Store;
 import voldemort.utils.ByteArray;
@@ -16,34 +15,22 @@ import voldemort.utils.ByteArray;
 public abstract class AbstractRequestHandler implements RequestHandler {
 
     private final ErrorCodeMapper errorMapper;
-    private final Map<String, ? extends Store<ByteArray, byte[]>> localStores;
-    private final Map<String, ? extends Store<ByteArray, byte[]>> routedStores;
+    private final StoreRepository storeRepository;
 
-    protected AbstractRequestHandler(ErrorCodeMapper errorMapper,
-                                     Map<String, ? extends Store<ByteArray, byte[]>> localStoreMap,
-                                     Map<String, ? extends Store<ByteArray, byte[]>> routedStoreMap) {
+    protected AbstractRequestHandler(ErrorCodeMapper errorMapper, StoreRepository repository) {
         this.errorMapper = errorMapper;
-        this.localStores = localStoreMap;
-        this.routedStores = routedStoreMap;
+        this.storeRepository = repository;
     }
 
     protected ErrorCodeMapper getErrorMapper() {
         return errorMapper;
     }
 
-    protected Map<String, ? extends Store<ByteArray, byte[]>> getLocalStores() {
-        return localStores;
-    }
-
-    protected Map<String, ? extends Store<ByteArray, byte[]>> getRoutedStores() {
-        return routedStores;
-    }
-
     protected Store<ByteArray, byte[]> getStore(String name, boolean isRouted) {
         if(isRouted)
-            return getRoutedStores().get(name);
+            return storeRepository.getRoutedStore(name);
         else
-            return getLocalStores().get(name);
+            return storeRepository.getLocalStore(name);
     }
 
 }

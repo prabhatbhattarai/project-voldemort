@@ -16,22 +16,14 @@
 
 package voldemort.server.socket;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import junit.framework.TestCase;
 import voldemort.ServerTestUtils;
+import voldemort.server.StoreRepository;
 import voldemort.server.protocol.vold.VoldemortNativeRequestHandler;
 import voldemort.store.ErrorCodeMapper;
-import voldemort.store.Store;
 import voldemort.store.socket.SocketAndStreams;
 import voldemort.store.socket.SocketDestination;
 import voldemort.store.socket.SocketPool;
-import voldemort.utils.ByteArray;
 
 /**
  * Tests for the socket pooling
@@ -63,10 +55,8 @@ public class SocketPoolTest extends TestCase {
                                    32 * 1024);
         this.dest1 = new SocketDestination("localhost", port1);
         this.dest2 = new SocketDestination("localhost", port2);
-        ConcurrentMap<String, Store<ByteArray, byte[]>> m = new ConcurrentHashMap<String, Store<ByteArray, byte[]>>();
         VoldemortNativeRequestHandler requestHandler = new VoldemortNativeRequestHandler(new ErrorCodeMapper(),
-                                                                                         m,
-                                                                                         m);
+                                                                                         new StoreRepository());
         this.server1 = new SocketServer(port1,
                                         maxTotalConnections,
                                         maxTotalConnections + 3,
@@ -113,26 +103,4 @@ public class SocketPoolTest extends TestCase {
         assertTrue(sas1 != sas2);
     }
 
-    public void testNoChurn() throws Exception {
-        ExecutorService service = Executors.newFixedThreadPool(10);
-        int numRequests = 100;
-        final AtomicInteger curr = new AtomicInteger(0);
-        final CountDownLatch latch = new CountDownLatch(numRequests);
-        for(int i = 0; i < numRequests; i++) {
-            service.execute(new Runnable() {
-
-                public void run() {
-                    SocketDestination dest = curr.getAndIncrement() % 2 == 0 ? dest1 : dest2;
-                    SocketAndStreams sas = pool.checkout(dest);
-                    pool.checkin(dest, sas);
-                    latch.countDown();
-                }
-            });
-        }
-        latch.await();
-        assertTrue("Created more sockets than expected (created = "
-                           + pool.getNumberSocketsCreated() + ", expected = " + maxTotalConnections
-                           + ".",
-                   maxTotalConnections >= pool.getNumberSocketsCreated());
-    }
 }
