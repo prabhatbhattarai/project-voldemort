@@ -28,7 +28,7 @@ import org.apache.commons.io.FileDeleteStrategy;
 import org.apache.commons.io.FileUtils;
 
 import voldemort.ServerTestUtils;
-import voldemort.client.admin.AdminClient;
+import voldemort.client.admin.PartitionRebalanceClient;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
@@ -48,7 +48,7 @@ import voldemort.versioning.Versioned;
 public class RebalancingTest extends TestCase {
 
     private static String TEMP_DIR = "test/unit/temp-output";
-    private static String storeName = "test-replication-1";
+    private static String storeName = "test-replication-persistent";
 
     VoldemortServer server1;
     VoldemortServer server2;
@@ -132,9 +132,12 @@ public class RebalancingTest extends TestCase {
         server3.start();
 
         // do stealPartitions
-        AdminClient client = new AdminClient(server3.getIdentityNode(),
-                                             server3.getMetaDataStore(),
-                                             new SocketPool(100, 100, 2000, 10000));
+        PartitionRebalanceClient client = new PartitionRebalanceClient(server3.getIdentityNode(),
+                                                                       server3.getMetaDataStore(),
+                                                                       new SocketPool(100,
+                                                                                      100,
+                                                                                      2000,
+                                                                                      10000));
         // persist updated Cluster to metadata here
         client.updateClusterMetaData(2, updatedCluster, MetadataStore.CLUSTER_KEY);
 
@@ -189,9 +192,12 @@ public class RebalancingTest extends TestCase {
         VoldemortServer server3 = new VoldemortServer(config, updatedCluster);
         server3.start();
 
-        AdminClient client = new AdminClient(server1.getIdentityNode(),
-                                             server1.getMetaDataStore(),
-                                             new SocketPool(100, 100, 2000, 10000));
+        PartitionRebalanceClient client = new PartitionRebalanceClient(server1.getIdentityNode(),
+                                                                       server1.getMetaDataStore(),
+                                                                       new SocketPool(100,
+                                                                                      100,
+                                                                                      2000,
+                                                                                      10000));
         // persist updated Cluster to metadata for node 1
         client.updateClusterMetaData(0, updatedCluster, MetadataStore.CLUSTER_KEY);
 

@@ -26,7 +26,6 @@ public class VoldemortOpCode {
     public static final byte UPDATE_CLUSTER_METADATA_OP_CODE = 6;
     public static final byte UPDATE_STORES_METADATA_OP_CODE = 7;
     public static final byte RESTART_SERVICES_OP_CODE = 8;
-    public static final byte REBALANCING_SERVER_MODE_OP_CODE = 9;
-    public static final byte NORMAL_SERVER_MODE_OP_CODE = 10;
-    public static final byte REDIRECT_GET_OP_CODE = 11;
+    public static final byte SERVER_STATE_CHANGE_OP_CODE = 9;
+    public static final byte REDIRECT_GET_OP_CODE = 10;
 }

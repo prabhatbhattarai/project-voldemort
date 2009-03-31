@@ -97,7 +97,7 @@ public class StreamStoreRequestHandler {
             storeDefs = null;
         }
 
-        if(SERVER_STATE.REBALANCING_STATE.equals(state)) {
+        if(SERVER_STATE.REBALANCING_STEALER_STATE.equals(state)) {
             List<Versioned<byte[]>> oldClusterInfo = metadataStore.get(ByteUtils.getBytes(MetadataStore.OLD_CLUSTER_KEY,
                                                                                           "UTF-8"));
             if(oldClusterInfo.size() != 1) {
@@ -179,7 +179,7 @@ public class StreamStoreRequestHandler {
 
     private List<Versioned<byte[]>> doGet(Store<ByteArray, byte[]> store, ByteArray key)
             throws IOException {
-        if(VoldemortServer.SERVER_STATE.REBALANCING_STATE.equals(state)) {
+        if(VoldemortServer.SERVER_STATE.REBALANCING_STEALER_STATE.equals(state)) {
             return doGetRebalancingState(store, key);
         }
         return doGetNormalState(store, key);

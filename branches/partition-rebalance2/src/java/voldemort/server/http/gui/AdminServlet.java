@@ -91,13 +91,15 @@ public class AdminServlet extends HttpServlet {
 
     private void handleStealRequest(HttpServletRequest req) throws ServletException, IOException {
         String storeName = getParam(req, "storeName");
-        if(storeName.equals("all")) {
-            for(String storeKey: server.getStoreMap().keySet()) {
-                client.stealPartitionsFromCluster(server.getIdentityNode().getId(), storeKey);
-            }
-        } else {
-            client.stealPartitionsFromCluster(server.getIdentityNode().getId(), storeName);
-        }
+        // if(storeName.equals("all")) {
+        // for(String storeKey: server.getStoreMap().keySet()) {
+        // client.stealPartitionsFromCluster(server.getIdentityNode().getId(),
+        // storeKey);
+        // }
+        // } else {
+        // client.stealPartitionsFromCluster(server.getIdentityNode().getId(),
+        // storeName);
+        // }
     }
 
     private void handleDonateRequest(HttpServletRequest req) throws ServletException, IOException {
@@ -110,19 +112,19 @@ public class AdminServlet extends HttpServlet {
             numPartitions = server.getIdentityNode().getNumberOfPartitions();
         }
 
-        if(storeName.equals("all")) {
-            for(String storeKey: server.getStoreMap().keySet()) {
-                client.donatePartitionsToCluster(server.getIdentityNode().getId(),
-                                                 storeName,
-                                                 numPartitions,
-                                                 deleteNode);
-            }
-        } else {
-            client.donatePartitionsToCluster(server.getIdentityNode().getId(),
-                                             storeName,
-                                             numPartitions,
-                                             deleteNode);
-        }
+        // if(storeName.equals("all")) {
+        // for(String storeKey: server.getStoreMap().keySet()) {
+        // client.donatePartitionsToCluster(server.getIdentityNode().getId(),
+        // storeName,
+        // numPartitions,
+        // deleteNode);
+        // }
+        // } else {
+        // client.donatePartitionsToCluster(server.getIdentityNode().getId(),
+        // storeName,
+        // numPartitions,
+        // deleteNode);
+        // }
     }
 
     public boolean hasParam(HttpServletRequest request, String param) {
