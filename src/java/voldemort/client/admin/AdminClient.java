@@ -40,7 +40,6 @@ import voldemort.store.socket.SocketDestination;
 import voldemort.store.socket.SocketPool;
 import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
-import voldemort.utils.ClusterUtils;
 import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 import voldemort.xml.ClusterMapper;
@@ -71,6 +70,14 @@ public class AdminClient {
 
     public void close() throws VoldemortException {
     // don't close the socket pool, it is shared
+    }
+
+    public Node getConnectedNode() {
+        return currentNode;
+    }
+
+    public MetadataStore getMetaDataStore() {
+        return metadataStore;
     }
 
     public void updateClusterMetaData(int nodeId, Cluster cluster, String cluster_key)
@@ -237,159 +244,6 @@ public class AdminClient {
         }
     }
 
-    /**
-     * Rebalances the cluster by stealing partitions from current Cluster
-     * configuration. <strong> Steps </strong>
-     * <ul>
-     * <li>Get Current Cluster configuration from {@link MetadataStore}</li>
-     * <li>update current config as {@link MetadataStore#OLD_CLUSTER_KEY}</li>
-     * <li>Set Current Server state as {@link SERVER_STATE#REBALANCING_STATE}</li>
-     * <li>create a new cluster config by stealing partitions from all nodes</li>
-     * <li>For All nodes do
-     * <ul>
-     * <li>identify steal list for this node and make a temp. cluster Config</li>
-     * <li>Update ALL servers with temp. cluster Config</li>
-     * <li>steal partitions</li>
-     * </ul>
-     * </li>
-     * <li>Set Current Server state as {@link SERVER_STATE#NORMAL_STATE}</li>
-     * </ul>
-     * <p>
-     * TODO: HIGH Failure Scenarios
-     * <ul>
-     * <li>StealerNode dies</li>
-     * <li>DonorNode dies</li>
-     * </ul>
-     * 
-     * @throws IOException
-     */
-    public void stealPartitionsFromCluster(int stealerNodeId, String storeName) throws IOException {
-        logger.info("Node(" + currentNode.getId() + ") Starting Steal Parttion Process");
-        Cluster currentCluster = metadataStore.getCluster();
-        updateClusterMetaData(stealerNodeId, currentCluster, MetadataStore.OLD_CLUSTER_KEY);
-
-        logger.info("Node(" + currentNode.getId() + ") State changed to REBALANCING MODE");
-        setRebalancingStateAndRestart(stealerNodeId);
-
-        Node stealerNode = currentCluster.getNodeById(stealerNodeId);
-        if(stealerNode == null) {
-            throw new VoldemortException("stealerNode id:" + stealerNodeId
-                                         + " should be present in initial cluster");
-        }
-
-        Cluster updatedCluster = ClusterUtils.updateClusterStealPartitions(currentCluster,
-                                                                           stealerNode);
-        try {
-            for(Node donorNode: currentCluster.getNodes()) {
-                if(donorNode.getId() != stealerNodeId) {
-                    List<Integer> stealList = getStealList(currentCluster,
-                                                           updatedCluster,
-                                                           donorNode.getId(),
-                                                           stealerNodeId);
-                    logger.info("Node(" + currentNode.getId() + ") Stealing from node:"
-                                + donorNode.getId() + " stealList:" + stealList);
-
-                    if(stealList.size() > 0) {
-                        Cluster tempCluster = getTempCluster(currentCluster,
-                                                             donorNode,
-                                                             stealerNode,
-                                                             stealList);
-
-                        logger.info("tempCluster:" + ClusterUtils.GetClusterAsString(tempCluster));
-
-                        // set tempCluster on Donor node and stream partitions
-                        updateClusterMetaData(donorNode.getId(),
-                                              tempCluster,
-                                              MetadataStore.CLUSTER_KEY);
-                        pipeGetAndPutStreams(donorNode.getId(), stealerNodeId, storeName, stealList);
-                    }
-                }
-            }
-
-            for(Node node: currentCluster.getNodes()) {
-                updateClusterMetaData(node.getId(), updatedCluster, MetadataStore.CLUSTER_KEY);
-            }
-            setNormalStateAndRestart(stealerNode.getId());
-            logger.info("Node(" + currentNode.getId() + ") State changed back to NORMAL MODE");
-
-            logger.info("Node(" + currentNode.getId() + ") Steal process completed.");
-        } catch(Exception e) {
-            // undo all changes
-            for(Node node: currentCluster.getNodes()) {
-                updateClusterMetaData(node.getId(), updatedCluster, MetadataStore.OLD_CLUSTER_KEY);
-            }
-            throw new VoldemortException("Steal Partitions for " + stealerNodeId + " failed", e);
-        }
-    }
-
-    /**
-     * Rebalances the cluster by deleting current node and returning partitions
-     * to other nodes in cluster. <strong> Steps </strong>
-     * <ul>
-     * <li>Get Current Cluster configuration from {@link MetadataStore}</li>
-     * <li>Create new Cluster config by identifying partitions to return</li>
-     * <li>For All nodes do
-     * <ul>
-     * <li>identify steal list for this node 'K'</li>
-     * <li>update current config as {@link MetadataStore#OLD_CLUSTER_KEY} on
-     * remote node 'K'</li>
-     * <li>create a temp cluster config</li>
-     * <li>Update ALL servers with temp cluster Config</li>
-     * <li>Set remote node 'K' state as {@link SERVER_STATE#REBALANCING_STATE}</li>
-     * <li>return partitions</li>
-     * <li>Set remote node 'K' state as {@link SERVER_STATE#NORMAL_STATE}</li>
-     * </ul>
-     * </li>
-     * </ul>
-     * 
-     * @throws IOException
-     */
-    public void donatePartitionsToCluster(int donorNodeId,
-                                          String storeName,
-                                          int numPartitions,
-                                          boolean deleteNode) throws IOException {
-        logger.info("Node(" + currentNode.getId() + ") Starting Donate Partition Process");
-
-        Cluster currentCluster = metadataStore.getCluster();
-        Cluster updatedCluster = ClusterUtils.updateClusterDonatePartitions(currentCluster,
-                                                                            donorNodeId,
-                                                                            numPartitions,
-                                                                            deleteNode);
-        Node donorNode = updatedCluster.getNodeById(donorNodeId);
-
-        logger.info("originalCluster:" + ClusterUtils.GetClusterAsString(currentCluster));
-        logger.info("updatedCluster:" + ClusterUtils.GetClusterAsString(updatedCluster));
-
-        for(Node node: updatedCluster.getNodes()) {
-            if(node.getId() != donorNode.getId()) {
-                logger.info("Node(" + donorNodeId + ") Donating to node:" + node.getId());
-
-                updateClusterMetaData(node.getId(), currentCluster, MetadataStore.OLD_CLUSTER_KEY);
-
-                List<Integer> stealList = getStealList(currentCluster,
-                                                       updatedCluster,
-                                                       donorNode.getId(),
-                                                       node.getId());
-                if(stealList.size() == 0) {
-                    continue;
-                }
-                Cluster tempCluster = getTempCluster(currentCluster, donorNode, node, stealList);
-                logger.info("tempCluster:" + ClusterUtils.GetClusterAsString(tempCluster));
-
-                for(Node tempNode: tempCluster.getNodes()) {
-                    updateClusterMetaData(tempNode.getId(), tempCluster, MetadataStore.CLUSTER_KEY);
-                }
-
-                setRebalancingStateAndRestart(node.getId());
-
-                pipeGetAndPutStreams(donorNode.getId(), node.getId(), storeName, stealList);
-
-                setNormalStateAndRestart(node.getId());
-            }
-        }
-        logger.info("Node(" + currentNode.getId() + ") Donate process completed ..");
-    }
-
     public void restartServices(int nodeId) {
         Cluster currentCluster = metadataStore.getCluster();
         Node node = currentCluster.getNodeById(nodeId);
@@ -411,7 +265,7 @@ public class AdminClient {
         }
     }
 
-    public void setNormalStateAndRestart(int nodeId) {
+    public void changeStateAndRestart(int nodeId, SERVER_STATE state) {
         Cluster currentCluster = metadataStore.getCluster();
         Node node = currentCluster.getNodeById(nodeId);
         SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
@@ -419,31 +273,8 @@ public class AdminClient {
         SocketAndStreams sands = pool.checkout(destination);
         try {
             DataOutputStream outputStream = sands.getOutputStream();
-            outputStream.writeByte(VoldemortOpCode.NORMAL_SERVER_MODE_OP_CODE);
-            outputStream.flush();
-
-            DataInputStream inputStream = sands.getInputStream();
-            checkException(inputStream);
-        } catch(IOException e) {
-            close(sands.getSocket());
-            throw new VoldemortException(e);
-        } finally {
-            pool.checkin(destination, sands);
-        }
-
-        // restart current node
-        restartServices(nodeId);
-    }
-
-    public void setRebalancingStateAndRestart(int nodeId) {
-        Cluster currentCluster = metadataStore.getCluster();
-        Node node = currentCluster.getNodeById(nodeId);
-        SocketDestination destination = new SocketDestination(node.getHost(), node.getAdminPort());
-
-        SocketAndStreams sands = pool.checkout(destination);
-        try {
-            DataOutputStream outputStream = sands.getOutputStream();
-            outputStream.writeByte(VoldemortOpCode.REBALANCING_SERVER_MODE_OP_CODE);
+            outputStream.writeByte(VoldemortOpCode.SERVER_STATE_CHANGE_OP_CODE);
+            outputStream.writeUTF(state.toString());
             outputStream.flush();
 
             DataInputStream inputStream = sands.getInputStream();
@@ -493,10 +324,10 @@ public class AdminClient {
         }
     }
 
-    private Cluster getTempCluster(Cluster currentCluster,
-                                   Node fromNode,
-                                   Node toNode,
-                                   List<Integer> stealList) {
+    public Cluster getTempCluster(Cluster currentCluster,
+                                  Node fromNode,
+                                  Node toNode,
+                                  List<Integer> stealList) {
         ArrayList<Node> nodes = new ArrayList<Node>();
         for(Node node: currentCluster.getNodes()) {
             if(fromNode.getId() == node.getId()) {
@@ -525,16 +356,16 @@ public class AdminClient {
         return new Cluster(currentCluster.getName(), nodes);
     }
 
-    public void pipeGetAndPutStreams(int getNodeId,
-                                     int putNodeId,
+    public void pipeGetAndPutStreams(int donorNodeId,
+                                     int stealerNodeId,
                                      String storeName,
                                      List<Integer> stealList) throws IOException {
-        requestPutEntriesAsStream(putNodeId, storeName, requestGetPartitionsAsStream(getNodeId,
+        requestPutEntriesAsStream(stealerNodeId, storeName, requestGetPartitionsAsStream(donorNodeId,
                                                                                      storeName,
                                                                                      stealList));
     }
 
-    private List<Integer> getStealList(Cluster old, Cluster updated, int fromNode, int toNode) {
+    public List<Integer> getStealList(Cluster old, Cluster updated, int fromNode, int toNode) {
         ArrayList<Integer> stealList = new ArrayList<Integer>();
         List<Integer> oldPartitions = old.getNodeById(fromNode).getPartitionIds();
         List<Integer> updatedPartitions = updated.getNodeById(toNode).getPartitionIds();

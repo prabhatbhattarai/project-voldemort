@@ -30,8 +30,8 @@ import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.VoldemortOpCode;
 import voldemort.server.UnableUpdateMetadataException;
-import voldemort.server.VoldemortServer;
 import voldemort.server.VoldemortService;
+import voldemort.server.VoldemortServer.SERVER_STATE;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.StorageEngine;
 import voldemort.store.StoreDefinition;
@@ -99,11 +99,8 @@ public class AdminServiceRequestHandler {
             case VoldemortOpCode.RESTART_SERVICES_OP_CODE:
                 handleRestartServicesRequest();
                 break;
-            case VoldemortOpCode.REBALANCING_SERVER_MODE_OP_CODE:
-                handleRebalancingServerModeRequest();
-                break;
-            case VoldemortOpCode.NORMAL_SERVER_MODE_OP_CODE:
-                handleNormalServerModeRequest();
+            case VoldemortOpCode.SERVER_STATE_CHANGE_OP_CODE:
+                handleServerStateChangeRequest();
                 break;
             case VoldemortOpCode.REDIRECT_GET_OP_CODE:
                 engine = readStorageEngine();
@@ -353,11 +350,11 @@ public class AdminServiceRequestHandler {
         }
     }
 
-    private void handleRebalancingServerModeRequest() throws IOException {
+    private void handleServerStateChangeRequest() throws IOException {
         try {
             List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
                                                                                        "UTF-8"));
-
+            SERVER_STATE newState = SERVER_STATE.valueOf(inputStream.readUTF());
             // update version
             VectorClock updatedVersion = new VectorClock();
             if(serverState.size() > 0) {
@@ -368,8 +365,7 @@ public class AdminServiceRequestHandler {
 
             metadataStore.put(new ByteArray(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
                                                                "UTF-8")),
-                              new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.REBALANCING_STATE.toString(),
-                                                                       "UTF-8"),
+                              new Versioned<byte[]>(ByteUtils.getBytes(newState.toString(), "UTF-8"),
                                                     updatedVersion));
 
             outputStream.writeShort(0);
@@ -379,31 +375,6 @@ public class AdminServiceRequestHandler {
             return;
         }
 
-    }
-
-    private void handleNormalServerModeRequest() throws IOException {
-        try {
-            List<Versioned<byte[]>> serverState = metadataStore.get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
-                                                                                       "UTF-8"));
-
-            // update version
-            VectorClock updatedVersion = new VectorClock();
-            if(serverState.size() > 0) {
-                updatedVersion = ((VectorClock) serverState.get(0).getVersion());
-            }
-            updatedVersion.incrementVersion(nodeId, System.currentTimeMillis());
-
-            metadataStore.put(new ByteArray(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
-                                                               "UTF-8")),
-                              new Versioned<byte[]>(ByteUtils.getBytes(VoldemortServer.SERVER_STATE.NORMAL_STATE.toString(),
-                                                                       "UTF-8"),
-                                                    updatedVersion));
-            outputStream.writeShort(0);
-        } catch(VoldemortException e) {
-            e.printStackTrace();
-            writeException(outputStream, e);
-            return;
-        }
     }
 
     private void handleRedirectGetRequest(StorageEngine<ByteArray, byte[]> engine, byte[] key)

@@ -71,7 +71,8 @@ public class VoldemortServer extends AbstractService {
 
     public static enum SERVER_STATE {
         NORMAL_STATE,
-        REBALANCING_STATE,
+        REBALANCING_STEALER_STATE,
+        REBALANCING_DONOR_STATE
     }
 
     public VoldemortServer(VoldemortConfig config) {

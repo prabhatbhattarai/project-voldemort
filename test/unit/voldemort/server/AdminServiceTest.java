@@ -58,6 +58,8 @@ import voldemort.xml.ClusterMapper;
 public class AdminServiceTest extends TestCase {
 
     private static String TEMP_DIR = "test/unit/temp-output";
+    private static String storeName = "test-replication-memory";
+
     VoldemortConfig config;
     VoldemortServer server;
     Cluster cluster;
@@ -246,18 +248,19 @@ public class AdminServiceTest extends TestCase {
         AdminClient client = new AdminClient(server.getIdentityNode(),
                                              server.getMetaDataStore(),
                                              new SocketPool(100, 100, 2000, 10000));
-        client.setRebalancingStateAndRestart(server.getIdentityNode().getId());
+        client.changeStateAndRestart(server.getIdentityNode().getId(),
+                                     SERVER_STATE.REBALANCING_STEALER_STATE);
 
         List<Versioned<byte[]>> values = server.getMetaDataStore()
                                                .get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
                                                                        "UTF-8"));
         SERVER_STATE state = SERVER_STATE.valueOf(new String(values.get(0).getValue()));
         assertEquals("State should be changed correctly to rebalancing state",
-                     SERVER_STATE.REBALANCING_STATE,
+                     SERVER_STATE.REBALANCING_STEALER_STATE,
                      state);
 
         // change back to NORMAL state
-        client.setNormalStateAndRestart(server.getIdentityNode().getId());
+        client.changeStateAndRestart(server.getIdentityNode().getId(), SERVER_STATE.NORMAL_STATE);
 
         values = server.getMetaDataStore().get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
                                                                   "UTF-8"));
@@ -268,19 +271,19 @@ public class AdminServiceTest extends TestCase {
 
         // lets revert back to REBALANCING STATE AND CHECK (last time I promise
         // :) )
-        client.setRebalancingStateAndRestart(server.getIdentityNode().getId());
+        client.changeStateAndRestart(server.getIdentityNode().getId(),
+                                     SERVER_STATE.REBALANCING_DONOR_STATE);
 
         values = server.getMetaDataStore().get(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
                                                                   "UTF-8"));
         state = SERVER_STATE.valueOf(new String(values.get(0).getValue()));
         assertEquals("State should be changed correctly to rebalancing state",
-                     SERVER_STATE.REBALANCING_STATE,
+                     SERVER_STATE.REBALANCING_DONOR_STATE,
                      state);
     }
 
     public void testGetPartitionsAsStream() throws IOException {
         // user store should be present
-        String storeName = "test-replication-1";
         Store<ByteArray, byte[]> store = server.getStoreMap().get(storeName);
         assertNotSame("Store '" + storeName + "' should not be null", null, store);
 
@@ -336,7 +339,6 @@ public class AdminServiceTest extends TestCase {
     }
 
     public void testPutEntriesAsStream() throws IOException {
-        String storeName = "test-replication-1";
         Store<ByteArray, byte[]> store = server.getStoreMap().get(storeName);
         assertNotSame("Store '" + storeName + "' should not be null", null, store);
 
@@ -370,9 +372,6 @@ public class AdminServiceTest extends TestCase {
     }
 
     public void testPipeGetAndPutStreams() throws IOException {
-        // store should be present
-        // user store should be present
-        String storeName = "test-replication-1";
         Store<ByteArray, byte[]> store = server.getStoreMap().get(storeName);
         assertNotSame("Store '" + storeName + "' should not be null", null, store);
 

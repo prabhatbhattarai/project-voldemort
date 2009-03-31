@@ -90,7 +90,7 @@ public class StoreServlet extends HttpServlet {
     }
 
     /**
-     * TODO support {@link VoldemortServer#REBALANCING_STATE} Get should
+     * TODO support {@link VoldemortServer#REBALANCING_STEALER_STATE} Get should
      * Redirect depending on old cluster configuration see {@link SocketServer}
      * implementation for reference
      */
