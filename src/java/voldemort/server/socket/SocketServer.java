@@ -24,7 +24,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
@@ -34,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
+import voldemort.annotations.jmx.JmxGetter;
+import voldemort.annotations.jmx.JmxManaged;
 import voldemort.server.protocol.RequestHandler;
 
 /**
@@ -42,17 +43,19 @@ import voldemort.server.protocol.RequestHandler;
  * @author jay
  * 
  */
+@JmxManaged
 public class SocketServer extends Thread {
 
     static final Logger logger = Logger.getLogger(SocketServer.class.getName());
 
-    private final ExecutorService threadPool;
+    private final ThreadPoolExecutor threadPool;
     private final Random random = new Random();
     private final int port;
     private final ThreadGroup threadGroup;
     private final CountDownLatch isStarted = new CountDownLatch(1);
     private final int socketBufferSize;
     private final RequestHandler requestHandler;
+    private final int maxThreads;
     private ServerSocket serverSocket = null;
 
     public SocketServer(int port,
@@ -64,10 +67,11 @@ public class SocketServer extends Thread {
         this.socketBufferSize = socketBufferSize;
         this.threadGroup = new ThreadGroup("voldemort-socket-server");
         this.requestHandler = requestHandler;
+        this.maxThreads = maxThreads;
         this.threadPool = new ThreadPoolExecutor(defaultThreads,
                                                  maxThreads,
-                                                 1,
-                                                 TimeUnit.SECONDS,
+                                                 0,
+                                                 TimeUnit.MILLISECONDS,
                                                  new SynchronousQueue<Runnable>(),
                                                  threadFactory,
                                                  rejectedExecutionHandler);
@@ -162,8 +166,24 @@ public class SocketServer extends Thread {
         }
     }
 
+    @JmxGetter(name = "port", description = "The port on which the server accepts connections.")
     public int getPort() {
         return this.port;
+    }
+
+    @JmxGetter(name = "maxThreads", description = "The maximum number of threads that can be started on the server.")
+    public int getMaxThreads() {
+        return this.maxThreads;
+    }
+
+    @JmxGetter(name = "currentThreads", description = "The current number of utilized threads on the server.")
+    public int getCurrentThreads() {
+        return this.threadPool.getActiveCount();
+    }
+
+    @JmxGetter(name = "remainingThreads", description = "The number of additional threads that can be allocated before reaching the maximum.")
+    public int getRemainingThreads() {
+        return getMaxThreads() - getCurrentThreads();
     }
 
     public void awaitStartupCompletion() {

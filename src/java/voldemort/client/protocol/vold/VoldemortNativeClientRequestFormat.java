@@ -18,7 +18,8 @@ import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
 /**
- * A low-overhead custom binary protocol
+ * The {@link voldemort.client.protocol.RequestFormat} for a low-overhead custom
+ * binary protocol
  * 
  * @author jay
  * 
@@ -138,6 +139,9 @@ public class VoldemortNativeClientRequestFormat implements RequestFormat {
         checkException(inputStream);
     }
 
+    /*
+     * If there is an exception, throw it
+     */
     private void checkException(DataInputStream inputStream) throws IOException {
         short retCode = inputStream.readShort();
         if(retCode != 0) {

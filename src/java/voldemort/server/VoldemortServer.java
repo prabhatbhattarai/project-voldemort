@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.server.http.HttpService;
@@ -87,6 +88,8 @@ public class VoldemortServer extends AbstractService {
         services.add(new StorageService(storeRepository, metadataStore, scheduler, voldemortConfig));
         if(voldemortConfig.isHttpServerEnabled())
             services.add(new HttpService(this,
+                                         storeRepository,
+                                         RequestFormatType.VOLDEMORT,
                                          voldemortConfig.getMaxThreads(),
                                          identityNode.getHttpPort()));
         RequestHandler requestHandler = new RequestHandlerFactory(this.storeRepository).getRequestHandler(voldemortConfig.getRequestFormatType());

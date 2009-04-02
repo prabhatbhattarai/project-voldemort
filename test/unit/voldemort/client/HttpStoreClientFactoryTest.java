@@ -20,6 +20,7 @@ import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 
 import voldemort.ServerTestUtils;
+import voldemort.client.protocol.RequestFormatType;
 import voldemort.serialization.SerializerFactory;
 import voldemort.store.http.HttpStore;
 
@@ -40,9 +41,12 @@ public class HttpStoreClientFactoryTest extends AbstractStoreClientFactoryTest {
         context = ServerTestUtils.getJettyServer(getClusterXml(),
                                                  getStoreDefXml(),
                                                  getValidStoreName(),
+                                                 RequestFormatType.VOLDEMORT,
                                                  getLocalNode().getHttpPort());
         server = context.getServer();
-        httpStore = ServerTestUtils.getHttpStore(getValidStoreName(), getLocalNode().getHttpPort());
+        httpStore = ServerTestUtils.getHttpStore(getValidStoreName(),
+                                                 RequestFormatType.VOLDEMORT,
+                                                 getLocalNode().getHttpPort());
         url = getLocalNode().getHttpUrl().toString();
     }
 

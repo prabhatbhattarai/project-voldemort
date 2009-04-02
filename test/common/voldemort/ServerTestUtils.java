@@ -30,6 +30,7 @@ import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 
 import voldemort.client.RoutingTier;
+import voldemort.client.protocol.RequestFormatFactory;
 import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
@@ -37,6 +38,7 @@ import voldemort.serialization.SerializerDefinition;
 import voldemort.server.StoreRepository;
 import voldemort.server.VoldemortConfig;
 import voldemort.server.http.StoreServlet;
+import voldemort.server.protocol.RequestHandler;
 import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.socket.SocketServer;
 import voldemort.store.Store;
@@ -104,6 +106,7 @@ public class ServerTestUtils {
     public static Context getJettyServer(String clusterXml,
                                          String storesXml,
                                          String storeName,
+                                         RequestFormatType requestFormat,
                                          int port) throws Exception {
         StoreRepository repository = getStores(storeName, clusterXml, storesXml);
 
@@ -112,13 +115,19 @@ public class ServerTestUtils {
         server.setSendServerVersion(false);
         Context context = new Context(server, "/", Context.NO_SESSIONS);
 
-        context.addServlet(new ServletHolder(new StoreServlet(repository)), "/*");
+        RequestHandler handler = new RequestHandlerFactory(repository).getRequestHandler(requestFormat);
+        context.addServlet(new ServletHolder(new StoreServlet(handler)), "/stores");
         server.start();
         return context;
     }
 
-    public static HttpStore getHttpStore(String storeName, int port) {
-        return new HttpStore(storeName, "localhost", port, new HttpClient());
+    public static HttpStore getHttpStore(String storeName, RequestFormatType format, int port) {
+        return new HttpStore(storeName,
+                             "localhost",
+                             port,
+                             new HttpClient(),
+                             new RequestFormatFactory().getRequestFormat(format),
+                             false);
     }
 
     /**
@@ -170,17 +179,17 @@ public class ServerTestUtils {
         List<StoreDefinition> defs = new ArrayList<StoreDefinition>();
         SerializerDefinition serDef = new SerializerDefinition("string");
         for(int i = 0; i < numStores; i++)
-            defs.add(new StoreDefinition("test",
+            defs.add(new StoreDefinition("test" + i,
                                          InMemoryStorageConfiguration.TYPE_NAME,
                                          serDef,
                                          serDef,
                                          RoutingTier.SERVER,
                                          2,
-                                         2,
-                                         2,
-                                         2,
-                                         2,
-                                         2));
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1));
         return defs;
     }
 

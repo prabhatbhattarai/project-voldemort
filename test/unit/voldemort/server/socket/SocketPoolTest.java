@@ -33,51 +33,37 @@ import voldemort.store.socket.SocketPool;
  */
 public class SocketPoolTest extends TestCase {
 
-    private int port1;
-    private int port2;
+    private int port;
     private int maxConnectionsPerNode = 3;
     private int maxTotalConnections = 2 * maxConnectionsPerNode + 1;
     private SocketPool pool;
     private SocketDestination dest1;
-    private SocketDestination dest2;
-    private SocketServer server1;
-    private SocketServer server2;
+    private SocketServer server;
 
     @Override
     public void setUp() {
-        int[] ports = ServerTestUtils.findFreePorts(2);
-        this.port1 = ports[0];
-        this.port2 = ports[1];
+        this.port = ServerTestUtils.findFreePort();
         this.pool = new SocketPool(maxConnectionsPerNode,
                                    maxTotalConnections,
                                    1000,
                                    1000,
                                    32 * 1024);
-        this.dest1 = new SocketDestination("localhost", port1);
-        this.dest2 = new SocketDestination("localhost", port2);
+        this.dest1 = new SocketDestination("localhost", port);
         VoldemortNativeRequestHandler requestHandler = new VoldemortNativeRequestHandler(new ErrorCodeMapper(),
                                                                                          new StoreRepository());
-        this.server1 = new SocketServer(port1,
-                                        maxTotalConnections,
-                                        maxTotalConnections + 3,
-                                        10000,
-                                        requestHandler);
-        this.server2 = new SocketServer(port2,
-                                        maxTotalConnections,
-                                        maxTotalConnections + 3,
-                                        10000,
-                                        requestHandler);
-        this.server1.start();
-        this.server1.awaitStartupCompletion();
-        this.server2.start();
-        this.server2.awaitStartupCompletion();
+        this.server = new SocketServer(port,
+                                       maxTotalConnections,
+                                       maxTotalConnections + 3,
+                                       10000,
+                                       requestHandler);
+        this.server.start();
+        this.server.awaitStartupCompletion();
     }
 
     @Override
     public void tearDown() {
         this.pool.close();
-        this.server1.shutdown();
-        this.server2.shutdown();
+        this.server.shutdown();
     }
 
     public void testTwoCheckoutsGetTheSameSocket() throws Exception {
