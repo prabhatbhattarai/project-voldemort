@@ -26,6 +26,7 @@ import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 import org.apache.commons.httpclient.params.HttpMethodParams;
 
+import voldemort.client.protocol.RequestFormatFactory;
 import voldemort.client.protocol.RequestFormatType;
 import voldemort.server.StoreRepository;
 import voldemort.server.http.HttpService;
@@ -143,7 +144,11 @@ public class RemoteStoreComparisonTest {
 
         /*** Do HTTP tests ***/
         repository.addLocalStore(new InMemoryStorageEngine<ByteArray, byte[]>(storeName));
-        HttpService httpService = new HttpService(null, numThreads, 8080);
+        HttpService httpService = new HttpService(null,
+                                                  repository,
+                                                  RequestFormatType.VOLDEMORT,
+                                                  numThreads,
+                                                  8080);
         httpService.start();
         HttpClient httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
         HttpClientParams clientParams = httpClient.getParams();
@@ -160,7 +165,12 @@ public class RemoteStoreComparisonTest {
         managerParams.setMaxTotalConnections(numThreads);
         managerParams.setStaleCheckingEnabled(false);
         managerParams.setMaxConnectionsPerHost(httpClient.getHostConfiguration(), numThreads);
-        final HttpStore httpStore = new HttpStore("test", "localhost", 8080, httpClient);
+        final HttpStore httpStore = new HttpStore("test",
+                                                  "localhost",
+                                                  8080,
+                                                  httpClient,
+                                                  new RequestFormatFactory().getRequestFormat(RequestFormatType.VOLDEMORT),
+                                                  false);
         Thread.sleep(400);
 
         PerformanceTest httpWriteTest = new PerformanceTest() {

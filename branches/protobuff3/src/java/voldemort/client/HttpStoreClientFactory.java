@@ -29,6 +29,7 @@ import org.apache.commons.httpclient.params.HttpClientParams;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 import org.apache.commons.httpclient.params.HttpMethodParams;
 
+import voldemort.client.protocol.RequestFormatFactory;
 import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Node;
 import voldemort.store.Store;
@@ -50,6 +51,8 @@ public class HttpStoreClientFactory extends AbstractStoreClientFactory {
 
     private final HttpClient httpClient;
     private final MultiThreadedHttpConnectionManager connectionManager;
+    private final RequestFormatFactory requestFormatFactory;
+    private final boolean reroute;
 
     public HttpStoreClientFactory(ClientConfig config) {
         super(config);
@@ -72,6 +75,8 @@ public class HttpStoreClientFactory extends AbstractStoreClientFactory {
         managerParams.setStaleCheckingEnabled(false);
         managerParams.setMaxConnectionsPerHost(httpClient.getHostConfiguration(),
                                                config.getMaxConnectionsPerNode());
+        this.reroute = config.getRoutingTier().equals(RoutingTier.SERVER);
+        this.requestFormatFactory = new RequestFormatFactory();
     }
 
     @Override
@@ -79,7 +84,12 @@ public class HttpStoreClientFactory extends AbstractStoreClientFactory {
                                                 String host,
                                                 int port,
                                                 RequestFormatType type) {
-        return new HttpStore(name, host, port, httpClient);
+        return new HttpStore(name,
+                             host,
+                             port,
+                             httpClient,
+                             requestFormatFactory.getRequestFormat(type),
+                             reroute);
     }
 
     @Override

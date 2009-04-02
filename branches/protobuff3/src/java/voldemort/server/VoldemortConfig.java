@@ -223,6 +223,8 @@ public class VoldemortConfig implements Serializable {
         if(schedulerThreads < 1)
             throw new ConfigurationException("Must have at least 1 scheduler thread, "
                                              + this.schedulerThreads + " set.");
+        if(enableServerRouting && !enableSocketServer)
+            throw new ConfigurationException("Server-side routing is enabled, this requires the socket server to also be enabled.");
     }
 
     private int getIntEnvVariable(String name) {
