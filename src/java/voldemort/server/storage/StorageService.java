@@ -243,8 +243,43 @@ public class StorageService extends AbstractService {
 
     @Override
     protected void stopInner() {
+        /*
+         * We may end up closing a given store more than once, but that is cool
+         * because close() is idempotent
+         */
+
+        Exception lastException = null;
+        logger.info("Closing all stores.");
+        /* This will also close the node stores including local stores */
+        for(Store<ByteArray, byte[]> store: this.storeRepository.getAllRoutedStores()) {
+            logger.info("Closing routed store for " + store.getName());
+            try {
+                store.close();
+            } catch(Exception e) {
+                lastException = e;
+            }
+        }
         logger.info("All stores closed.");
-        throw new VoldemortException("Fix me.");
+
+        /* Close all storage configs */
+        logger.info("Closing storage configurations.");
+        for(StorageConfiguration config: storageConfigs.values()) {
+            logger.info("Closing " + config.getType() + " storage config.");
+            try {
+                config.close();
+            } catch(Exception e) {
+                lastException = e;
+            }
+        }
+
+        this.clientThreadPool.shutdownNow();
+        logger.info("Closed client threadpool.");
+
+        /* If there is an exception, throw it */
+        if(lastException instanceof VoldemortException)
+            throw (VoldemortException) lastException;
+        else if(lastException != null)
+            throw new VoldemortException(lastException);
     }
 
     public MetadataStore getMetadataStore() {

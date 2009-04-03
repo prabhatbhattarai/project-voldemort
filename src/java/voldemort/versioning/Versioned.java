@@ -36,10 +36,6 @@ public final class Versioned<T> implements Serializable {
     private volatile VectorClock version;
     private volatile T object;
 
-    public final static <T> Versioned<T> of(T object) {
-        return new Versioned<T>(object);
-    }
-
     public Versioned(T object) {
         this(object, new VectorClock());
     }

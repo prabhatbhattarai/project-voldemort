@@ -116,16 +116,6 @@ public class VoldemortServer extends AbstractService {
             service.start();
         long end = System.currentTimeMillis();
 
-        // add a shutdown hook to stop the server
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-
-            @Override
-            public void run() {
-                if(VoldemortServer.this.isStarted())
-                    VoldemortServer.this.stop();
-            }
-        });
-
         logger.info("Startup completed in " + (end - start) + " ms.");
     }
 
@@ -168,9 +158,19 @@ public class VoldemortServer extends AbstractService {
             Utils.croak("Error while loading configuration: " + e.getMessage());
         }
 
-        VoldemortServer server = new VoldemortServer(config);
+        final VoldemortServer server = new VoldemortServer(config);
         if(!server.isStarted())
             server.start();
+
+        // add a shutdown hook to stop the server
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+
+            @Override
+            public void run() {
+                if(server.isStarted())
+                    server.stop();
+            }
+        });
     }
 
     public Node getIdentityNode() {
