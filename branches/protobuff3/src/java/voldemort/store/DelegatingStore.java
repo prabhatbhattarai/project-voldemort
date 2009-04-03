@@ -75,7 +75,7 @@ public class DelegatingStore<K, V> implements Store<K, V> {
 
     @Override
     public String toString() {
-        return super.toString();
+        return "Store(" + getName() + ")";
     }
 
 }

@@ -21,6 +21,7 @@ import static voldemort.utils.Utils.assertNotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
@@ -66,6 +67,7 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[]> {
     private final Database bdbDatabase;
     private final Environment environment;
     private final VersionedSerializer<byte[]> serializer;
+    private final AtomicBoolean isOpen;
 
     public BdbStorageEngine(String name, Environment environment, Database database) {
         assertNotNull("The store name cannot be null.", name);
@@ -75,6 +77,7 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[]> {
         this.bdbDatabase = database;
         this.environment = environment;
         this.serializer = new VersionedSerializer<byte[]>(new IdentitySerializer());
+        this.isOpen = new AtomicBoolean(true);
     }
 
     public String getName() {
@@ -289,7 +292,8 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[]> {
 
     public void close() throws PersistenceFailureException {
         try {
-            this.bdbDatabase.close();
+            if(this.isOpen.compareAndSet(true, false))
+                this.bdbDatabase.close();
         } catch(DatabaseException e) {
             throw new PersistenceFailureException("Shutdown failed.", e);
         }
