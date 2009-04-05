@@ -29,7 +29,7 @@ public class StorageServiceTest extends TestCase {
     @Override
     public void setUp() {
         VoldemortConfig config = new VoldemortConfig(0, "/tmp");
-        config.setBdbCacheSize(10000);
+        config.setBdbCacheSize(100000);
         this.scheduler = new SchedulerService(1, new MockTime());
         this.cluster = ServerTestUtils.getLocalCluster(1);
         this.storeDefs = ServerTestUtils.getStoreDefs(2);
