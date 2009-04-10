@@ -266,6 +266,15 @@ public class StorageService extends AbstractService {
         }
         logger.info("All stores closed.");
 
+        /* Close slop store if necessary */
+        if(this.storeRepository.hasSlopStore()) {
+            try {
+                this.storeRepository.getSlopStore().close();
+            } catch(Exception e) {
+                lastException = e;
+            }
+        }
+
         /* Close all storage configs */
         logger.info("Closing storage configurations.");
         for(StorageConfiguration config: storageConfigs.values()) {
