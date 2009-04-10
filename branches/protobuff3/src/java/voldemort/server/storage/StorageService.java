@@ -35,6 +35,8 @@ import voldemort.client.protocol.RequestFormatType;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.routing.ConsistentRoutingStrategy;
+import voldemort.serialization.ByteArraySerializer;
+import voldemort.serialization.SlopSerializer;
 import voldemort.server.AbstractService;
 import voldemort.server.ServiceType;
 import voldemort.server.StoreRepository;
@@ -48,6 +50,7 @@ import voldemort.store.StoreDefinition;
 import voldemort.store.logging.LoggingStore;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.store.routed.RoutedStore;
+import voldemort.store.serialized.SerializingStorageEngine;
 import voldemort.store.slop.Slop;
 import voldemort.store.socket.SocketPool;
 import voldemort.store.socket.SocketStore;
@@ -77,7 +80,6 @@ public class StorageService extends AbstractService {
     private final SocketPool socketPool;
     private final ConcurrentMap<String, StorageConfiguration> storageConfigs;
     private final ClientThreadPool clientThreadPool;
-    private Store<ByteArray, Slop> slopStore;
 
     public StorageService(StoreRepository storeRepository,
                           MetadataStore metadataStore,
@@ -128,6 +130,9 @@ public class StorageService extends AbstractService {
             StorageEngine<ByteArray, byte[]> slopEngine = getStorageEngine("slop",
                                                                            voldemortConfig.getSlopStoreType());
             registerEngine(slopEngine);
+            storeRepository.setSlopStore(new SerializingStorageEngine<ByteArray, Slop>(slopEngine,
+                                                                                       new ByteArraySerializer(),
+                                                                                       new SlopSerializer()));
         }
         List<StoreDefinition> storeDefs = this.metadataStore.getStores();
         logger.info("Initializing stores:");
@@ -284,10 +289,6 @@ public class StorageService extends AbstractService {
 
     public MetadataStore getMetadataStore() {
         return this.metadataStore;
-    }
-
-    public Store<ByteArray, Slop> getSlopStore() {
-        return this.slopStore;
     }
 
     public StoreRepository getStoreRepository() {

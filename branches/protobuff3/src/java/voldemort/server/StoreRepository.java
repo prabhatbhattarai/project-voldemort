@@ -10,6 +10,7 @@ import voldemort.VoldemortException;
 import voldemort.annotations.concurrency.Threadsafe;
 import voldemort.store.StorageEngine;
 import voldemort.store.Store;
+import voldemort.store.slop.Slop;
 import voldemort.utils.ByteArray;
 import voldemort.utils.Pair;
 
@@ -40,6 +41,9 @@ public class StoreRepository {
      * mean converting all the store wrappers to StorageEngines, then we could
      * make the getLocal return a storage engine.
      */
+
+    /* The store used for storing slop for future handoff */
+    private volatile StorageEngine<ByteArray, Slop> slopStore;
 
     /*
      * Unrouted stores, local to this node
@@ -158,6 +162,20 @@ public class StoreRepository {
         for(Map.Entry<Pair<String, Integer>, Store<ByteArray, byte[]>> entry: this.nodeStores.entrySet())
             vals.add(Pair.create(entry.getKey().getSecond(), entry.getValue()));
         return vals;
+    }
+
+    public StorageEngine<ByteArray, Slop> getSlopStore() {
+        if(this.slopStore == null)
+            throw new IllegalStateException("Slop store has not been set!");
+        return this.slopStore;
+    }
+
+    public void setSlopStore(StorageEngine<ByteArray, Slop> slopStore) {
+        this.slopStore = slopStore;
+    }
+
+    public boolean hasSlopStore() {
+        return this.slopStore != null;
     }
 
 }
