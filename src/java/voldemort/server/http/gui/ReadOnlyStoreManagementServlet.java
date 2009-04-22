@@ -25,6 +25,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.log4j.Logger;
+
 import voldemort.VoldemortException;
 import voldemort.server.VoldemortServer;
 import voldemort.server.http.VoldemortServletContextListener;
@@ -38,6 +40,7 @@ import com.google.common.collect.Maps;
 public class ReadOnlyStoreManagementServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1;
+    private static final Logger logger = Logger.getLogger(ReadOnlyStoreManagementServlet.class);
 
     private Map<String, RandomAccessFileStore> stores;
     private VelocityEngine velocityEngine;
@@ -113,8 +116,11 @@ public class ReadOnlyStoreManagementServlet extends HttpServlet {
                     indexFile = new File(indexUrl);
                     dataFile = new File(dataUrl);
                 } else {
+                    logger.info("Executing fetch of " + indexUrl);
                     indexFile = fileFetcher.fetchFile(indexUrl);
+                    logger.info("Executing fetch of " + dataUrl);
                     dataFile = fileFetcher.fetchFile(dataUrl);
+                    logger.info("Fetch complete.");
                 }
                 resp.getWriter().write(indexFile.getAbsolutePath());
                 resp.getWriter().write("\n");
