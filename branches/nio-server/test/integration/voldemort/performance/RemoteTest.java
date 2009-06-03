@@ -33,108 +33,126 @@ import voldemort.versioning.Versioned;
 public class RemoteTest {
 
     public static void main(String[] args) throws Exception {
-        if(args.length < 4 || args.length > 5)
+        if(args.length < 5 || args.length > 6)
             croak("USAGE: java " + RemoteTest.class.getName()
-                  + " url num_requests value_size start_num [rwd]");
+                  + " url num_threads num_requests value_size start_num [rwd]");
 
         System.err.println("Bootstraping cluster data.");
-        String url = args[0];
-        int numRequests = Integer.parseInt(args[1]);
-        int valueSize = Integer.parseInt(args[2]);
-        int startNum = Integer.parseInt(args[3]);
+
+        int argIndex = 0;
+
+        String url = args[argIndex++];
+        int numThreads = Integer.parseInt(args[argIndex++]);
+        int numRequests = Integer.parseInt(args[argIndex++]);
+        int valueSize = Integer.parseInt(args[argIndex++]);
+        int startNum = Integer.parseInt(args[argIndex++]);
+
         String ops = "rwd";
-        if(args.length > 4)
-            ops = args[4];
 
-        StoreClientFactory factory = new SocketStoreClientFactory(new ClientConfig().setMaxThreads(20)
-                                                                                    .setBootstrapUrls(url));
-        final StoreClient<String, String> store = factory.getStoreClient("test");
+        if(args.length > 5)
+            ops = args[argIndex++];
 
-        final String value = new String(TestUtils.randomBytes(valueSize));
-        ExecutorService service = Executors.newFixedThreadPool(8);
+        ClientConfig clientConfig = new ClientConfig();
+        clientConfig.setMaxThreads(numThreads);
+        clientConfig.setMaxConnectionsPerNode(numThreads);
+        clientConfig.setBootstrapUrls(url);
 
-        if(ops.contains("d")) {
-            System.err.println("Beginning delete test.");
-            final AtomicInteger count0 = new AtomicInteger(startNum);
-            final AtomicInteger successes = new AtomicInteger(0);
-            long start = System.currentTimeMillis();
-            final CountDownLatch latch0 = new CountDownLatch(numRequests);
-            for(int i = 0; i < numRequests; i++) {
-                service.execute(new Runnable() {
+        StoreClientFactory factory = new SocketStoreClientFactory(clientConfig);
+        StoreClient<String, String> store = factory.getStoreClient("test");
 
-                    public void run() {
-                        try {
-                            String str = Integer.toString(count0.getAndIncrement());
-                            store.delete(str);
-                            successes.getAndIncrement();
-                        } catch(Exception e) {
-                            e.printStackTrace();
-                        } finally {
-                            latch0.countDown();
-                        }
-                    }
-                });
-            }
-            latch0.await();
-            long deleteTime = System.currentTimeMillis() - start;
-            System.out.println("Throughput: " + (numRequests / (float) deleteTime * 1000)
-                               + " deletes/sec.");
-            System.out.println(successes.get() + " things deleted.");
+        String value = new String(TestUtils.randomBytes(valueSize));
+        ExecutorService service = Executors.newFixedThreadPool(numThreads);
+
+        if(ops.contains("r")) {
+            test(store, service, numThreads, numRequests, startNum, value, new Test() {
+
+                public void test(StoreClient<String, String> store, String key, String value) {
+                    store.get(key);
+                }
+
+                public String getName() {
+                    return "read";
+                }
+
+            });
         }
 
         if(ops.contains("w")) {
-            System.err.println("Beginning write test.");
-            final AtomicInteger count1 = new AtomicInteger(startNum);
-            long start = System.currentTimeMillis();
-            final CountDownLatch latch1 = new CountDownLatch(numRequests);
-            for(int i = 0; i < numRequests; i++) {
-                service.execute(new Runnable() {
+            test(store, service, numThreads, numRequests, startNum, value, new Test() {
 
-                    public void run() {
-                        try {
-                            String str = Integer.toString(count1.getAndIncrement());
-                            store.put(str, new Versioned<String>(value));
-                        } catch(Exception e) {
-                            e.printStackTrace();
-                        } finally {
-                            latch1.countDown();
-                        }
-                    }
-                });
-            }
-            latch1.await();
-            long writeTime = System.currentTimeMillis() - start;
-            System.out.println("Throughput: " + (numRequests / (float) writeTime * 1000)
-                               + " writes/sec.");
+                public void test(StoreClient<String, String> store, String key, String value) {
+                    store.put(key, new Versioned<String>(value));
+                }
+
+                public String getName() {
+                    return "write";
+                }
+
+            });
         }
 
-        if(ops.contains("r")) {
-            System.err.println("Beginning read test.");
-            final CountDownLatch latch2 = new CountDownLatch(numRequests);
-            long start = System.currentTimeMillis();
-            final AtomicInteger count2 = new AtomicInteger(startNum);
-            for(int i = 0; i < numRequests; i++) {
-                service.execute(new Runnable() {
+        if(ops.contains("d")) {
+            test(store, service, numThreads, numRequests, startNum, value, new Test() {
 
-                    public void run() {
-                        try {
-                            String str = Integer.toString(count2.getAndIncrement());
-                            store.get(str);
-                        } catch(Exception e) {
-                            e.printStackTrace();
-                        } finally {
-                            latch2.countDown();
-                        }
-                    }
-                });
-            }
-            latch2.await();
-            long readTime = System.currentTimeMillis() - start;
-            System.out.println("Throughput: " + (numRequests / (float) readTime * 1000.0)
-                               + " reads/sec.");
+                public void test(StoreClient<String, String> store, String key, String value) {
+                    store.delete(key);
+                }
+
+                public String getName() {
+                    return "delete";
+                }
+
+            });
         }
 
         System.exit(0);
+    }
+
+    private static void test(final StoreClient<String, String> store,
+                             final ExecutorService service,
+                             final int numThreads,
+                             final int numRequests,
+                             final int startNum,
+                             final String value,
+                             final Test test) throws Exception {
+        long totalRequests = numThreads * numRequests;
+        final AtomicInteger count = new AtomicInteger(startNum);
+        final CountDownLatch latch = new CountDownLatch(numThreads);
+
+        long start = System.currentTimeMillis();
+
+        for(int i = 0; i < numThreads; i++) {
+            service.execute(new Runnable() {
+
+                public void run() {
+                    try {
+                        for(int i = 0; i < numRequests; i++) {
+                            String key = Integer.toString(count.getAndIncrement());
+                            test.test(store, key, value);
+                        }
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+        }
+
+        latch.await();
+        long millis = System.currentTimeMillis() - start;
+
+        double result = (double) totalRequests / (double) millis * 1000.0;
+
+        System.out.println("Throughput: " + (long) result + " " + test.getName() + "s/sec.");
+    }
+
+    private interface Test {
+
+        public void test(StoreClient<String, String> store, String key, String value);
+
+        public String getName();
+
     }
 
 }
