@@ -102,6 +102,7 @@ public class VoldemortConfig implements Serializable {
     private boolean enableGui;
     private boolean enableHttpServer;
     private boolean enableSocketServer;
+    private boolean useNioConnector;
     private boolean enableJmx;
     private boolean enableVerboseLogging;
     private boolean enableStatTracking;
@@ -181,6 +182,8 @@ public class VoldemortConfig implements Serializable {
         this.enableVerboseLogging = props.getBoolean("enable.verbose.logging", true);
         this.enableStatTracking = props.getBoolean("enable.stat.tracking", true);
         this.enableServerRouting = props.getBoolean("enable.server.routing", true);
+
+        this.useNioConnector = props.getBoolean("enable.nio.connector", false);
 
         this.pusherPollMs = props.getInt("pusher.poll.ms", 2 * 60 * 1000);
 
@@ -695,6 +698,14 @@ public class VoldemortConfig implements Serializable {
 
     public void setNumCleanupPermits(int numCleanupPermits) {
         this.numCleanupPermits = numCleanupPermits;
+    }
+
+    public boolean getUseNioConnector() {
+        return this.useNioConnector;
+    }
+
+    public void setUseNioConnector(boolean useNio) {
+        this.useNioConnector = useNio;
     }
 
 }
