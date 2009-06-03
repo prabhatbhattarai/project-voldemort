@@ -30,6 +30,7 @@ import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.server.http.HttpService;
 import voldemort.server.jmx.JmxService;
+import voldemort.server.niosocket.NioSocketService;
 import voldemort.server.protocol.RequestHandler;
 import voldemort.server.protocol.RequestHandlerFactory;
 import voldemort.server.scheduler.SchedulerService;
@@ -93,12 +94,23 @@ public class VoldemortServer extends AbstractService {
                                          voldemortConfig.getMaxThreads(),
                                          identityNode.getHttpPort()));
         RequestHandler requestHandler = new RequestHandlerFactory(this.storeRepository).getRequestHandler(voldemortConfig.getRequestFormatType());
-        if(voldemortConfig.isSocketServerEnabled())
-            services.add(new SocketService(requestHandler,
-                                           identityNode.getSocketPort(),
-                                           voldemortConfig.getCoreThreads(),
-                                           voldemortConfig.getMaxThreads(),
-                                           voldemortConfig.getSocketBufferSize()));
+        if(voldemortConfig.isSocketServerEnabled()) {
+            if(voldemortConfig.getUseNioConnector()) {
+                logger.info("Using NIO Connector.");
+                services.add(new NioSocketService(requestHandler,
+                                                  identityNode.getSocketPort(),
+                                                  voldemortConfig.getCoreThreads(),
+                                                  voldemortConfig.getMaxThreads(),
+                                                  voldemortConfig.getSocketBufferSize()));
+            } else {
+                logger.info("Using BIO Connector.");
+                services.add(new SocketService(requestHandler,
+                                               identityNode.getSocketPort(),
+                                               voldemortConfig.getCoreThreads(),
+                                               voldemortConfig.getMaxThreads(),
+                                               voldemortConfig.getSocketBufferSize()));
+            }
+        }
         if(voldemortConfig.isJmxEnabled())
             services.add(new JmxService(this,
                                         this.metadataStore.getCluster(),
